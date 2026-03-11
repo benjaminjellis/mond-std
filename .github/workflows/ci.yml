@@ -1,0 +1,20 @@
+name: Compile and Test
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install erlang
+        run: sudo apt update && sudo apt install -y erlang
+      - name: Install mond
+        run: echo "TODO"
+      # - name: Build
+      #   run: mond build
+      # - name: Test
+      #   run: mond test
