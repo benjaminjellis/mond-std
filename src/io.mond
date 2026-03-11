@@ -1,0 +1,5 @@
+;;; print a string followed by a newline
+(pub extern let println ~ (String -> Unit) mond_io_helpers/println)
+
+;;; debug-print any value using Erlang term syntax
+(pub extern let debug ~ ('a -> Unit) erlang/display)
