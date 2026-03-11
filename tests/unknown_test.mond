@@ -18,15 +18,11 @@
 
 (test
   "unknown/float success"
-  (assert_eq
-    (unknown/run (unknown/from 1.5) (unknown/float))
-    (Ok 1.5)))
+  (assert_eq (unknown/run (unknown/from 1.5) (unknown/float)) (Ok 1.5)))
 
 (test
   "unknown/bool success"
-  (assert_eq
-    (unknown/run (unknown/from True) (unknown/bool))
-    (Ok True)))
+  (assert_eq (unknown/run (unknown/from True) (unknown/bool)) (Ok True)))
 
 (test
   "unknown/list of int success"
