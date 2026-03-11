@@ -1,18 +1,23 @@
-(use result)
 (use unknown [Unknown])
+(use result [Result])
 
 ;;; A process identifier.
 (pub extern type Pid)
+
 ;;; A process name
 (pub extern type ['m] Name)
 
 ;;; Paylod of a subject
-(pub type SubjectPayload ( (:owner ~ Pid) (:tag ~ Unknown) ))
+(pub type SubjectPayload (
+  (:owner ~ Pid)
+  (:tag ~ Unknown)))
 
 ;;; A subject
-(pub type ['m] Subject ( (Subject ~ SubjectPayload) (NamedSubject ~ Name 'm) ))
+(pub type ['m] Subject (
+  (Subject ~ SubjectPayload)
+  (NamedSubject ~ Name 'm)))
 
-:;; Return the current process identifier.
+;; Return the current process identifier.
 (pub extern let self {} ~ Pid erlang/self)
 
 ;;; Spawn a new process that runs the given nullary function.
