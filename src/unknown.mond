@@ -1,4 +1,4 @@
-(use result)
+(use result [Result])
 
 ;;; Opaque runtime-backed value from an untyped boundary.
 (pub extern type Unknown)
@@ -7,7 +7,9 @@
 (pub extern type ['a] Decoder)
 
 ;;; Minimal structured decode error.
-(pub type DecodeError ( (:expected ~ String) (:found ~ String) ))
+(pub type DecodeError (
+  (:expected ~ String)
+  (:found ~ String)))
 
 ;;; Lift a typed Mond value into Unknown.
 (pub extern let from ~ ('a -> Unknown) mond_unknown_helpers/from)

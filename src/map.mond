@@ -1,4 +1,4 @@
-(use option)
+(use option [Option])
 
 ;;;  key/value maps backed by Erlang maps
 (pub extern type ['k 'v] Map maps/map)
@@ -25,7 +25,9 @@
 (pub extern let size ~ (Map 'k 'v -> Int) maps/size)
 
 ;;; Result of a take operation: the updated map and the removed value (if present).
-(pub type ['k 'v] TakeResult ( (:map ~ Map 'k 'v) (:value ~ Option 'v) ))
+(pub type ['k 'v] TakeResult (
+  (:map ~ Map 'k 'v)
+  (:value ~ Option 'v)))
 
 ;;; Remove a key and return both the updated map and the removed value.
 (pub let take {k m}

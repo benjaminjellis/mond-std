@@ -1,5 +1,5 @@
 ;;; list.mond — list helpers backed by Erlang lists
-(use option)
+(use option [Option])
 
 ;;; Returns the number of elements in the list.
 (pub extern let length ~ ((List 'a) -> Int) erlang/length)
