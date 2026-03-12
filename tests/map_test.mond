@@ -9,7 +9,8 @@
 (test
   "map/new starts empty"
   (let [m (map/new)]
-    (let? [_ (assert_eq (map/size m) 0)] (assert_eq (map/get "missing" m) None))))
+    (let? [_ (assert_eq (map/size m) 0)]
+      (assert_eq (map/get "missing" m) None))))
 
 (test
   "map/put and map/get round trip"
@@ -36,4 +37,5 @@
 (test
   "map/take returns none and original map for missing key"
   (let [m     (sample_map) taken (map/take "missing" m)]
-    (let? [_ (assert_eq (:value taken) None)] (assert_eq (:map taken) m))))
+    (let? [_ (assert_eq (:value taken) None)]
+      (assert_eq (:map taken) m))))

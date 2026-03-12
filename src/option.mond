@@ -8,7 +8,10 @@
   (Some ~ 'a)))
 
 ;;; Returns true if the option is a Some value.
-(pub let is_some {option} (match option (Some _) ~> True None ~> False))
+(pub let is_some {option}
+  (match option
+    (Some _) ~> True
+    None ~> False))
 
 ;;; Returns true if the option is a Some and the value inside of it matches a predicate.
 (pub let is_some_and {option function}
@@ -17,7 +20,10 @@
     None ~> False))
 
 ;;; Returns true if the option is a None value.
-(pub let is_none {option} (match option (Some _) ~> False None ~> True))
+(pub let is_none {option}
+  (match option
+    (Some _) ~> False
+    None ~> True))
 
 ;;; Returns true if the option is a None or the value inside of it matches a predicate.
 (pub let is_none_or {option function}

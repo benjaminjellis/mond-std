@@ -16,7 +16,8 @@
 (pub extern let has ~ ('k -> Map 'k 'v -> Bool) maps/is_key)
 
 ;;; Lookup a key, returning None if absent.
-(pub let get {k m} (if (has k m) (Some (get_value k m)) None))
+(pub let get {k m}
+  (if (has k m) (Some (get_value k m)) None))
 
 ;;; Remove a key (no-op if absent).
 (pub extern let remove ~ ('k -> Map 'k 'v -> Map 'k 'v) maps/remove)

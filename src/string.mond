@@ -1,5 +1,6 @@
 ;; checks whether a string is empty
-(pub let is_empty {str} (= str ""))
+(pub let is_empty {str}
+  (= str ""))
 
 ;;; Gets the number of grapheme clusters in a given `String`.
 ;;; This function has to iterate across the whole string to count the number of

@@ -3,19 +3,23 @@
 (use std/result [bind])
 (use std/testing [assert_eq])
 
-(let test_list {} [1 2 3 4 5 6 7 8 9])
+(let test_list {}
+  [1 2 3 4 5 6 7 8 9])
 
 (test
   "list/nth with negative accessor"
-  (let [list  (test_list) value (list/nth -1 list)] (assert_eq value None)))
+  (let [list  (test_list) value (list/nth -1 list)]
+    (assert_eq value None)))
 
 (test
   "list/nth with out of bounds accessor"
-  (let [list  (test_list) value (list/nth 100 list)] (assert_eq value None)))
+  (let [list  (test_list) value (list/nth 100 list)]
+    (assert_eq value None)))
 
 (test
   "list/nth is 0-indexed"
-  (let [list  (test_list) value (list/nth 0 list)] (assert_eq value (Some 1))))
+  (let [list  (test_list) value (list/nth 0 list)]
+    (assert_eq value (Some 1))))
 
 (test
   "list/length reverse and append"
