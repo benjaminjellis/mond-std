@@ -1,4 +1,3 @@
-(use std)
 (use std/map)
 (use std/option [Option])
 (use std/testing [assert_eq assert])
