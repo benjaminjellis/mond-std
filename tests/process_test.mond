@@ -1,4 +1,3 @@
-(use std)
 (use std/process)
 (use std/result [Result bind])
 (use std/testing [assert_eq])

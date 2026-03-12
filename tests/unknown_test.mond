@@ -1,4 +1,3 @@
-(use std)
 (use std/map)
 (use std/result [Result])
 (use std/unknown [DecodeError])
