@@ -4,7 +4,8 @@
 (use std/unknown [DecodeError])
 (use std/testing [assert_eq])
 
-(let player_data {} (map/put "name" "Lucy" (map/new)))
+(let player_data {}
+  (map/put "name" "Lucy" (map/new)))
 
 (test
   "unknown/int success"
