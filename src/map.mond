@@ -26,9 +26,9 @@
 (pub extern let size ~ (Map 'k 'v -> Int) maps/size)
 
 ;;; Result of a take operation: the updated map and the removed value (if present).
-(pub type ['k 'v] TakeResult (
+(pub type ['k 'v] TakeResult [
   (:map ~ Map 'k 'v)
-  (:value ~ Option 'v)))
+  (:value ~ Option 'v)])
 
 ;;; Remove a key and return both the updated map and the removed value.
 (pub let take {k m}

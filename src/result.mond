@@ -1,13 +1,64 @@
 ;;; Result is the type used for returning and propagating
 ;;; errors. It is an enum with the variants, Ok 'a, representing
-;;; success and containing a value, and Err 'e, representing error
+;;; success and containing a value, and Error 'e, representing error
 ;;; and containing an error value.
-(pub type ['a 'e] Result (
+(pub type ['a 'e] Result [
   (Ok ~ 'a)
-  (Error ~ 'e)))
+  (Error ~ 'e)])
 
 ;;; bnd for let?
 (pub let bind {m func}
   (match m
     (Ok x) ~> (func x)
     (Error e) ~> (Error e)))
+
+;;; Returns true if the result is Ok.
+(pub let is_ok {result}
+  (match result
+    (Ok _) ~> True
+    (Error _) ~> False))
+
+;;; Returns true if the result is Ok and the value inside of it matches a predicate.
+(pub let is_ok_and {result function}
+  (match result
+    (Ok x) ~> (function x)
+    (Error _) ~> False))
+
+;;; Returns true if the result is Error
+(pub let is_error {result}
+  (match result
+    (Ok _) ~> False
+    (Error _) ~> True))
+
+;;; Returns true if the result is Error and the value inside of it matches a predicate.
+(pub let is_err_and {result function}
+  (match result
+    (Ok _) ~> False
+    (Error err) ~> (function err)))
+
+;;; Maps a Result 'a 'e to Result 'c 'e by applying a function to a contained Ok value, 
+;;; leaving an Error value untouched.
+;;; This function can be used to compose the results of two functions.
+(pub let map {result function}
+  (match result
+    (Ok x) ~> (Ok (function x))
+    (Error err) ~> (Error err)))
+
+;;; Returns the provided default (if Error), or applies a function to the contained value (if Ok).
+(pub let map_or {result default function}
+  (match result
+    (Ok x) ~> (function x)
+    (Error err) ~> default))
+
+;;; Maps a Result 'a 'e to Result 't 'f by applying a function to a contained Error value, 
+;;; leaving an Ok value untouched.
+;;; This function can be used to pass through a successful result while handling an error.
+(pub let map_err {result op}
+  (match result
+    (Ok x) ~> (Ok x)
+    (Error err) ~> (Error (op err))))
+
+(pub let flatten {result}
+  (match result
+    (Ok inner) ~> inner
+    (Error err) ~> (Error err)))

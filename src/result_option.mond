@@ -1,0 +1,15 @@
+(use result [Result])
+(use option [Option])
+
+;;; Converts from Result 'a 'e to Some 'a
+(pub let result_ok {result}
+  (match result
+    (Ok x) ~> (Some x)
+    (Error _) ~> None))
+
+;;; Transposes a Result of an Option into an Option of a Result.
+(pub let transpose_result {result}
+  (match result
+    (Ok (Some x)) ~> (Some (Ok x))
+    (Ok None) ~> None
+    (Error err) ~> (Some (Error err))))
