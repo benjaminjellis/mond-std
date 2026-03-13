@@ -2,16 +2,25 @@
 
 -export([
     spawn/1,
+    spawn_link/1,
     new_subject/0,
     named_subject/1,
     new_name/1,
     register/1,
     send/2,
-    receive_timeout/2
+    receive_timeout/2,
+    process_named/1,
+    new_selector/0
 ]).
 
+new_selector() ->
+      {selector, #{}}.
+
 spawn(F) ->
-    erlang:spawn(fun() -> F(unit) end).
+    proc_lib:spawn(fun() -> F(unit) end).
+
+spawn_link(F) ->
+      proc_lib:spawn_link(fun() -> F(unit) end).
 
 new_subject() ->
     {subject, {subjectpayload, self(), make_ref()}}.
@@ -50,3 +59,11 @@ receive_timeout({subject, {subjectpayload, _Owner, Tag}}, TimeoutMs) ->
     end;
 receive_timeout({namedsubject, {name, _Atom, Tag}}, TimeoutMs) ->
     receive_timeout({subject, {subjectpayload, self(), Tag}}, TimeoutMs).
+
+process_named({name, Name, Tag}) ->
+      case global:whereis_name({mond_name, Name, Tag}) of
+          Pid when is_pid(Pid) -> {ok, Pid};
+          undefined -> {error, unit}
+      end;
+  process_named(_) ->
+      {error, unit}.
