@@ -13,8 +13,8 @@ jobs:
       - name: Install erlang
         run: sudo apt update && sudo apt install -y erlang
       - name: Install mond
-        run: echo "TODO"
-      # - name: Build
-      #   run: mond build
-      # - name: Test
-      #   run: mond test
+        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.1 mond
+      - name: Build
+        run: mond build
+      - name: Test
+        run: mond test
