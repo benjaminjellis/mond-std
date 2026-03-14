@@ -1,11 +1,13 @@
 -module(mond_unknown_helpers).
--export([from/1, run/2, string/0, int/0, float/0, bool/0, list/1, field/2]).
+-export([from/1, run/2, string/0, int/0, float/0, bool/0, list/1, field/2, identity/1]).
 
 from(Value) ->
     Value.
 
 run(Data, Decoder) ->
     Decoder(Data).
+
+identity(X) -> X.
 
 string() ->
     fun(Data) when is_binary(Data) ->
