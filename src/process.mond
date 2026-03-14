@@ -6,16 +6,19 @@
 
 ;;; A process name
 (pub extern type ['m] Name)
+
+;;; A type that enables a process to wait for messages from multiple `Subject`s
+;;; at the same time, returning whichever message arrives first.
 (pub extern type ['p] Selector)
 
 (pub type ExitMessage [
   (:pid ~ Pid)
-  (:reason ~ ExitReason)])
+  (:reason ~ Unknown)])
 
-(pub type ['a] ExitReason [
+(pub type ExitReason [
   Normal
   Killed
-  (Abnormal ~ 'a)])
+  (Abnormal ~ Unknown)])
 
 ;;; Construct a globally named subject.
 (pub extern let new_name ~ (String -> Name 'm) mond_process_helpers/new_name)
@@ -31,10 +34,10 @@
   (NamedSubject ~ Name 'm)])
 
 ;;; Create a fresh typed subject owned by the current process.
-(pub extern let new_subject {} ~ (Subject 'm) mond_process_helpers/new_subject)
+(pub extern let new_subject ~ (Unit -> Subject 'm) mond_process_helpers/new_subject)
 
 ;; Return the current process identifier.
-(pub extern let self {} ~ Pid erlang/self)
+(pub extern let self ~ (Unit -> Pid) erlang/self)
 
 ;;; Spawn a new Erlang process to run concurretnly. This creates a process that is not linked.
 ;;; The spawned (child) process is linked to the process that spawned it (parent).procss 

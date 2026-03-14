@@ -18,11 +18,14 @@
 (pub extern let run ~ (Unknown -> Decoder 'a -> (Result 'a (List DecodeError))) mond_unknown_helpers/run)
 
 ;;; Primitive decoders.
-(pub extern let string {} ~ (Decoder String) mond_unknown_helpers/string)
-(pub extern let int {} ~ (Decoder Int) mond_unknown_helpers/int)
-(pub extern let float {} ~ (Decoder Float) mond_unknown_helpers/float)
-(pub extern let bool {} ~ (Decoder Bool) mond_unknown_helpers/bool)
+(pub extern let string ~ (Unit -> Decoder String) mond_unknown_helpers/string)
+(pub extern let int ~ (Unit -> Decoder Int) mond_unknown_helpers/int)
+(pub extern let float ~ (Unit -> Decoder Float) mond_unknown_helpers/float)
+(pub extern let bool ~ (Unit -> Decoder Bool) mond_unknown_helpers/bool)
 
 ;;; Structural decoders.
 (pub extern let list ~ ((Decoder 'a) -> (Decoder (List 'a))) mond_unknown_helpers/list)
 (pub extern let field ~ (String -> (Decoder 'a) -> (Decoder 'a)) mond_unknown_helpers/field)
+
+;;; Primitive encoders 
+(pub extern let from_string ~ (String -> Unknown) mond_unknown_helpers/identity)
