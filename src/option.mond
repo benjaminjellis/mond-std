@@ -3,9 +3,9 @@
 ;;; Type Option represents an optional value: 
 ;;; every Option is either Some and contains a value, 
 ;;; or None, and does not. Option types are very common in Rust code, as they have a number of uses:
-(pub type ['a] Option [
-  None
-  (Some ~ 'a)])
+(pub type ['a] Option
+  [None
+   (Some ~ 'a)])
 
 ;;; Returns true if the option is a Some value.
 (pub let is_some {option}
