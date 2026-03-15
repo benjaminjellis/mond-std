@@ -58,7 +58,7 @@
 (pub extern let register ~ (Name 'm -> (Result Unit String)) mond_process_helpers/register)
 
 ;;; Look up a process by registered name, returning the pid if it exists.
-(pub extern let named ~ (Name 'm -> Result Pid ()) mond_process_helpers/process_named)
+(pub extern let named ~ (Name 'm -> Result Pid Unit) mond_process_helpers/process_named)
 
 ;;; Wrap a registered name as a typed subject.
 (pub extern let named_subject ~ (Name 'm -> Subject 'm) mond_process_helpers/named_subject)
