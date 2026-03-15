@@ -13,8 +13,8 @@ jobs:
       - name: Install erlang
         run: sudo apt update && sudo apt install -y erlang
       - name: Install mond
-        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.4 mond
+        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.5 bahn
       - name: Build
-        run: mond build
+        run: bahn build
       - name: Test
-        run: mond test
+        run: bahn test
