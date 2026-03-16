@@ -1,0 +1,3 @@
+(pub type ['a 'b] Pair
+  [(:first ~ 'a)
+   (:second ~ 'b)])

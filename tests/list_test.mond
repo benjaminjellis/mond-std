@@ -1,6 +1,6 @@
 (use std/list)
 (use std/option [Option])
-(use std/result [bind])
+(use std/result [Result])
 (use std/testing [assert_eq])
 
 (let test_list {}
@@ -8,17 +8,17 @@
 
 (test
   "list/nth with negative accessor"
-  (let [list  (test_list) value (list/nth -1 list)]
+  (let [list (test_list) value (list/nth -1 list)]
     (assert_eq value None)))
 
 (test
   "list/nth with out of bounds accessor"
-  (let [list  (test_list) value (list/nth 100 list)]
+  (let [list (test_list) value (list/nth 100 list)]
     (assert_eq value None)))
 
 (test
   "list/nth is 0-indexed"
-  (let [list  (test_list) value (list/nth 0 list)]
+  (let [list (test_list) value (list/nth 0 list)]
     (assert_eq value (Some 1))))
 
 (test

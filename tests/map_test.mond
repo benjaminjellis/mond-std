@@ -1,7 +1,7 @@
 (use std/map)
 (use std/option [Option])
 (use std/testing [assert_eq assert])
-(use std/result [bind])
+(use std/result [Result])
 
 (let sample_map {}
   (map/put "language" "mond" (map/put "year" "2026" (map/new))))
@@ -36,6 +36,6 @@
 
 (test
   "map/take returns none and original map for missing key"
-  (let [m     (sample_map) taken (map/take "missing" m)]
+  (let [m (sample_map) taken (map/take "missing" m)]
     (let? [_ (assert_eq (:value taken) None)]
       (assert_eq (:map taken) m))))

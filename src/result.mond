@@ -6,12 +6,6 @@
   [(Ok ~ 'a)
    (Error ~ 'e)])
 
-;;; bnd for let?
-(pub let bind {m func}
-  (match m
-    (Ok x) ~> (func x)
-    (Error e) ~> (Error e)))
-
 ;;; Returns true if the result is Ok.
 (pub let is_ok {result}
   (match result
@@ -19,7 +13,7 @@
     (Error _) ~> False))
 
 ;;; Returns true if the result is Ok and the value inside of it matches a predicate.
-(pub let is_ok_and {result function}
+(pub let is_ok_and {function result}
   (match result
     (Ok x) ~> (function x)
     (Error _) ~> False))
@@ -31,7 +25,7 @@
     (Error _) ~> True))
 
 ;;; Returns true if the result is Error and the value inside of it matches a predicate.
-(pub let is_err_and {result function}
+(pub let is_err_and {function result}
   (match result
     (Ok _) ~> False
     (Error err) ~> (function err)))
@@ -39,21 +33,21 @@
 ;;; Maps a Result 'a 'e to Result 'c 'e by applying a function to a contained Ok value, 
 ;;; leaving an Error value untouched.
 ;;; This function can be used to compose the results of two functions.
-(pub let map {result function}
+(pub let map {function result}
   (match result
     (Ok x) ~> (Ok (function x))
     (Error err) ~> (Error err)))
 
 ;;; Returns the provided default (if Error), or applies a function to the contained value (if Ok).
-(pub let map_or {result default function}
+(pub let map_or {default function result}
   (match result
     (Ok x) ~> (function x)
-    (Error err) ~> default))
+    (Error _) ~> default))
 
 ;;; Maps a Result 'a 'e to Result 't 'f by applying a function to a contained Error value, 
 ;;; leaving an Ok value untouched.
 ;;; This function can be used to pass through a successful result while handling an error.
-(pub let map_err {result op}
+(pub let map_err {op result}
   (match result
     (Ok x) ~> (Ok x)
     (Error err) ~> (Error (op err))))

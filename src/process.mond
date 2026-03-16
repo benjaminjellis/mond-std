@@ -1,79 +1,86 @@
 (use unknown [Unknown])
 (use result [Result])
+(use option [Option])
+(use port [Port])
 
 ;;; A process identifier.
 (pub extern type Pid)
 
-;;; A process name
+;;; A process name.
 (pub extern type ['m] Name)
 
-;;; A type that enables a process to wait for messages from multiple `Subject`s
-;;; at the same time, returning whichever message arrives first.
-(pub extern type ['p] Selector)
+;;; Monitor reference.
+(pub extern type Monitor)
 
-(pub type ExitMessage
-  [(:pid ~ Pid)
-   (:reason ~ Unknown)])
+;;; Timer reference.
+(pub extern type Timer)
 
-(pub type ExitReason
-  [Normal
-   Killed
-   (Abnormal ~ Unknown)])
-
-;;; Construct a globally named subject.
-(pub extern let new_name ~ (String -> Name 'm) mond_process_helpers/new_name)
-
-;;; Paylod of a subject
+;;; Payload of a subject.
 (pub type SubjectPayload
   [(:owner ~ Pid)
    (:tag ~ Unknown)])
 
-;;; A subject is what processes use to commnicate with each other.
+;;; A subject is what processes use to communicate with each other.
 (pub type ['m] Subject
   [(Subject ~ SubjectPayload)
    (NamedSubject ~ Name 'm)])
 
-;;; Create a fresh typed subject owned by the current process.
-(pub extern let new_subject ~ (Unit -> Subject 'm) mond_process_helpers/new_subject)
+;;; Structured error information for process operations.
+(pub type ErlangErrorPayload
+  [(:class ~ String)
+   (:reason ~ Unknown)])
 
-;; Return the current process identifier.
+(pub type ProcessError
+  [InvalidPid
+   InvalidName
+   ProcessNotAlive
+   NameAlreadyRegistered
+   NameNotRegistered
+   InvalidSubject
+   NotSubjectOwner
+   Timeout
+   InvalidTimeout
+   InvalidDelay
+   (ErlangError ~ ErlangErrorPayload)])
+
+;;; Stable string tag for branching and logging process errors.
+(pub let error_kind {err}
+  (match err
+    InvalidPid ~> "invalid_pid"
+    InvalidName ~> "invalid_name"
+    ProcessNotAlive ~> "process_not_alive"
+    NameAlreadyRegistered ~> "name_already_registered"
+    NameNotRegistered ~> "name_not_registered"
+    InvalidSubject ~> "invalid_subject"
+    NotSubjectOwner ~> "not_subject_owner"
+    Timeout ~> "timeout"
+    InvalidTimeout ~> "invalid_timeout"
+    InvalidDelay ~> "invalid_delay"
+    (ErlangError _) ~> "erlang_error"))
+
+;;; Extract Erlang exception details when the error comes from an exception.
+(pub let erlang_error_payload {err}
+  (match err
+    (ErlangError payload) ~> (Some payload)
+    _ ~> None))
+
+;;; Get the current process identifier.
 (pub extern let self ~ (Unit -> Pid) erlang/self)
 
-;;; Spawn a new Erlang process to run concurretnly. This creates a process that is not linked.
-;;; The spawned (child) process is linked to the process that spawned it (parent).procss 
-;;; When a child process terminates an exit signal is sent to every other process that is 
-;;; linked to it.
-;;; See the follwoing links for more details;
-;;; - https://www.erlang.org/doc/reference_manual/processes.html
-;;; - https://www.erlang.org/doc/apps/stdlib/proc_lib.html
-(pub extern let spawn_link ~ ((Unit -> Unit) -> Pid) mond_process_helpers/spawn_link)
-
-;;; Spawn a new Erlang procss to run concurretnly. This creates a process that is not linked.
+;;; Spawn a linked process.
 (pub extern let spawn ~ ((Unit -> Unit) -> Pid) mond_process_helpers/spawn)
 
-;;; Sleep for N milliseconds.
-(pub extern let sleep ~ (Int -> Unit) timer/sleep)
+;;; Spawn an unlinked process.
+(pub extern let spawn_unlinked ~ ((Unit -> Unit) -> Pid) mond_process_helpers/spawn_unlinked)
 
-;;; Register the current process under a name.
-(pub extern let register ~ (Name 'm -> (Result Unit String)) mond_process_helpers/register)
+;;; Compatibility alias for older callers.
+(pub extern let spawn_linked ~ ((Unit -> Unit) -> Pid) mond_process_helpers/spawn)
 
-;;; Look up a process by registered name, returning the pid if it exists.
-(pub extern let named ~ (Name 'm -> Result Pid Unit) mond_process_helpers/process_named)
+;;; Construct a globally named subject.
+(pub extern let new_name ~ (String -> Name 'm) mond_process_helpers/new_name)
 
-;;; Wrap a registered name as a typed subject.
+;;; Wrap a name as a subject.
 (pub extern let named_subject ~ (Name 'm -> Subject 'm) mond_process_helpers/named_subject)
-
-;;; Send a typed message to a subject.
-(pub extern let send ~ (Subject 'm -> 'm -> 'm) mond_process_helpers/send)
-
-;;; Receive the next message for this subject, timing out after N milliseconds.
-(pub extern let receive_timeout ~ (Subject 'm -> Int -> (Result 'm Unit)) mond_process_helpers/receive_timeout)
-
-;;; Get the owner of a subject, returns an error if it doesn't have one
-(pub let subject_owner {subject}
-  (match subject
-    (NamedSubject name) ~> (named name)
-    (Subject paylod) ~> (Ok (:owner paylod))))
 
 ;;; Get the name of a subject, returning an error if it doesn't have one.
 (pub let subject_name {subject}
@@ -81,6 +88,213 @@
     (NamedSubject name) ~> (Ok name)
     (Subject _) ~> (Error ())))
 
-;;; Create a new `Selector` which can be used to receive messages on multiple
-;;; `Subject`s at once.
+;;; Create a fresh typed subject owned by the current process.
+(pub extern let new_subject ~ (Unit -> Subject 'm) mond_process_helpers/new_subject)
+
+;;; Look up a process by registered name, returning the pid if it exists.
+(pub extern let named ~ (Name 'm -> Result Pid ProcessError) mond_process_helpers/process_named)
+
+;;; Get the owner process of a subject.
+(pub let subject_owner {subject}
+  (match subject
+    (NamedSubject name) ~> (named name)
+    (Subject payload) ~> (Ok (:owner payload))))
+
+;;; Register a process under a given name.
+(pub extern let register ~ (Pid -> Name 'm -> (Result Unit ProcessError)) mond_process_helpers/register_process)
+
+;;; Unregister a name.
+(pub extern let unregister ~ (Name 'm -> (Result Unit ProcessError)) mond_process_helpers/unregister_process)
+
+;;; Send a typed message to a subject.
+(pub extern let send ~ (Subject 'm -> 'm -> (Result Unit ProcessError)) mond_process_helpers/send)
+
+;;; Receive the next message for this subject, timing out after N milliseconds.
+(pub extern let receive_timeout ~ (Subject 'm
+  -> Int
+  -> (Result 'm ProcessError)) mond_process_helpers/perform_receive)
+
+;;; Receive a message for this subject, waiting forever.
+(pub extern let receive_forever ~ (Subject 'm -> (Result 'm ProcessError)) mond_process_helpers/perform_receive_forever)
+
+;;; A type that enables a process to wait for messages from multiple subjects
+;;; at the same time, returning whichever message arrives first.
+(pub extern type ['p] Selector)
+
+;;; Exit reasons.
+(pub type ExitReason
+  [Normal
+   Killed
+   (Abnormal ~ Unknown)])
+
+;;; Trapped exit message payload.
+(pub type ExitMessage
+  [(:pid ~ Pid)
+   (:reason ~ ExitReason)])
+
+(type ProcessDownPayload
+  [(:monitor ~ Monitor)
+   (:pid ~ Pid)
+   (:reason ~ ExitReason)])
+
+(type PortDownPayload
+  [(:monitor ~ Monitor)
+   (:port ~ Port)
+   (:reason ~ ExitReason)])
+
+;;; Monitor down messages.
+(pub type Down
+  [(ProcessDown ~ ProcessDownPayload)
+   (PortDown ~ PortDownPayload)])
+
+;;; Create a new selector.
 (pub extern let new_selector ~ (Unit -> Selector 'p) mond_process_helpers/new_selector)
+
+;;; Receive using a selector with timeout.
+(pub extern let selector_receive ~ (Selector 'p
+  -> Int
+  -> (Result 'p ProcessError)) mond_process_helpers/selector_receive)
+
+;;; Receive using a selector forever.
+(pub extern let selector_receive_forever ~ (Selector 'p -> 'p) mond_process_helpers/selector_receive_forever)
+
+;;; Map selector payloads.
+(pub extern let map_selector ~ (Selector 'a -> ('a -> 'b) -> Selector 'b) mond_process_helpers/map_selector)
+
+;;; Merge selectors, preferring handlers from the second selector.
+(pub extern let merge_selector ~ (Selector 'a -> Selector 'a -> Selector 'a) mond_process_helpers/merge_selector)
+
+;;; Add a subject to a selector with payload mapping.
+(pub extern let select_map ~ (Selector 'p
+  -> Subject 'm
+  -> ('m -> 'p)
+  -> Selector 'p) mond_process_helpers/select_map)
+
+;;; Add a subject to a selector.
+(pub let select {subject selector}
+  (select_map selector subject (f {x} -> x)))
+
+;;; Remove a subject from a selector.
+(pub extern let deselect ~ (Selector 'p -> Subject 'm -> Selector 'p) mond_process_helpers/deselect)
+
+;;; Add a tuple-tag/arity handler to a selector.
+(pub extern let select_record ~ (Selector 'p
+  -> 'tag
+  -> Int
+  -> (Unknown -> 'p)
+  -> Selector 'p) mond_process_helpers/select_record)
+
+;;; Add a catch-all selector handler.
+(pub extern let select_other ~ (Selector 'p -> (Unknown -> 'p) -> Selector 'p) mond_process_helpers/select_other)
+
+;;; Add a trapped exit handler.
+(pub extern let select_trapped_exits ~ (Selector 'p
+  -> (ExitMessage -> 'p)
+  -> Selector 'p) mond_process_helpers/select_trapped_exits)
+
+;;; Add a handler for a specific monitor.
+(pub extern let select_specific_monitor ~ (Selector 'p
+  -> Monitor
+  -> (Down -> 'p)
+  -> Selector 'p) mond_process_helpers/select_specific_monitor)
+
+;;; Remove a specific monitor handler from a selector.
+(pub extern let deselect_specific_monitor ~ (Selector 'p
+  -> Monitor
+  -> Selector 'p) mond_process_helpers/deselect_specific_monitor)
+
+;;; Add a handler for all down messages.
+(pub extern let select_monitors ~ (Selector 'p -> (Down -> 'p) -> Selector 'p) mond_process_helpers/select_monitors)
+
+;;; Discard all messages in the current process mailbox.
+(pub extern let flush_messages ~ (Unit -> Unit) mond_process_helpers/flush_messages)
+
+;;; Sleep for N milliseconds.
+(pub extern let sleep ~ (Int -> Unit) timer/sleep)
+
+;;; Sleep forever.
+(pub extern let sleep_forever ~ (Unit -> Unit) mond_process_helpers/sleep_forever)
+
+;;; Check if a process is alive.
+(pub extern let is_alive ~ (Pid -> Bool) erlang/is_process_alive)
+
+(type ProcessMonitorFlag
+  [Process])
+
+(extern let erlang_monitor_process ~ (ProcessMonitorFlag -> Pid -> Monitor) erlang/monitor)
+
+;;; Start monitoring a process so that when the monitored process exits a
+;;; message is sent to the monitoring process.
+(pub let monitor {pid}
+  (erlang_monitor_process Process pid))
+
+;;; Stop monitoring a process.
+(pub extern let demonitor_process ~ (Monitor -> Unit) mond_process_helpers/demonitor_process)
+
+;;; Link to a process, returning False if it is not alive.
+(pub extern let link ~ (Pid -> Bool) mond_process_helpers/link)
+
+;;; Remove a link to a process.
+(extern let erlang_unlink ~ (Pid -> Bool) erlang/unlink)
+
+(pub let unlink {pid}
+  (do (erlang_unlink pid))
+  ())
+
+;;; Set whether this process traps exits.
+(pub extern let trap_exits ~ (Bool -> Unit) mond_process_helpers/trap_exits)
+
+;;; Send a message after a delay.
+(pub extern let send_after ~ (Subject 'm
+  -> Int
+  -> 'm
+  -> (Result Timer ProcessError)) mond_process_helpers/send_after)
+
+;;; Result of cancelling a timer.
+(pub type Cancelled
+  [TimerNotFound
+   (Cancelled ~ Int)])
+
+;;; Cancel a timer.
+(pub extern let cancel_timer ~ (Timer -> Cancelled) mond_process_helpers/cancel_timer)
+
+(type KillFlag
+  [Kill])
+
+;;; Kill a process with an untrappable signal.
+(extern let erlang_kill ~ (Pid -> KillFlag -> Bool) erlang/exit)
+
+(pub let kill {pid}
+  (do (erlang_kill pid Kill))
+  ())
+
+;;; Send a normal exit signal.
+(extern let erlang_send_exit ~ (Pid -> 'a -> Bool) erlang/exit)
+
+(pub let send_exit {pid}
+  (do (erlang_send_exit pid Normal))
+  ())
+
+;;; Send an abnormal exit signal with a reason value.
+(pub let send_abnormal_exit {pid reason}
+  (do (erlang_send_exit pid reason))
+  ())
+
+(let perform_call {subject make_request wait_for_reply}
+  (let [reply_subject (new_subject)]
+    (let? [_ (send subject (make_request reply_subject))]
+      (wait_for_reply reply_subject))))
+
+;;; Send a request message and wait for a reply with timeout.
+(pub let call {subject timeout make_request}
+  (perform_call
+    subject
+    make_request
+    (f {reply_subject} -> (receive_timeout reply_subject timeout))))
+
+;;; Send a request message and wait forever for a reply.
+(pub let call_forever {subject make_request}
+  (perform_call
+    subject
+    make_request
+    (f {reply_subject} -> (receive_forever reply_subject))))

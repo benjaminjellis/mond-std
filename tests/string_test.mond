@@ -1,5 +1,5 @@
 (use std/string)
-(use std/result [bind])
+(use std/result [Result])
 (use std/testing [assert_eq assert assert_ne])
 
 (test
