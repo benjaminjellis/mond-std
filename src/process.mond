@@ -159,52 +159,82 @@
 (pub extern let selector_receive_forever ~ (Selector 'p -> 'p) mond_process_helpers/selector_receive_forever)
 
 ;;; Map selector payloads.
-(pub extern let map_selector ~ (Selector 'a -> ('a -> 'b) -> Selector 'b) mond_process_helpers/map_selector)
+(extern let map_selector_impl ~ (Selector 'a -> ('a -> 'b) -> Selector 'b) mond_process_helpers/map_selector)
+
+(pub let map_selector {mapper selector}
+  (map_selector_impl selector mapper))
 
 ;;; Merge selectors, preferring handlers from the second selector.
-(pub extern let merge_selector ~ (Selector 'a -> Selector 'a -> Selector 'a) mond_process_helpers/merge_selector)
+(extern let merge_selector_impl ~ (Selector 'a -> Selector 'a -> Selector 'a) mond_process_helpers/merge_selector)
+
+(pub let merge_selector {other selector}
+  (merge_selector_impl selector other))
 
 ;;; Add a subject to a selector with payload mapping.
-(pub extern let select_map ~ (Selector 'p
+(extern let select_map_impl ~ (Selector 'p
   -> Subject 'm
   -> ('m -> 'p)
   -> Selector 'p) mond_process_helpers/select_map)
 
+(pub let select_map {subject mapper selector}
+  (select_map_impl selector subject mapper))
+
 ;;; Add a subject to a selector.
 (pub let select {subject selector}
-  (select_map selector subject (f {x} -> x)))
+  (select_map subject (f {x} -> x) selector))
 
 ;;; Remove a subject from a selector.
-(pub extern let deselect ~ (Selector 'p -> Subject 'm -> Selector 'p) mond_process_helpers/deselect)
+(extern let deselect_impl ~ (Selector 'p -> Subject 'm -> Selector 'p) mond_process_helpers/deselect)
+
+(pub let deselect {subject selector}
+  (deselect_impl selector subject))
 
 ;;; Add a tuple-tag/arity handler to a selector.
-(pub extern let select_record ~ (Selector 'p
+(extern let select_record_impl ~ (Selector 'p
   -> 'tag
   -> Int
   -> (Unknown -> 'p)
   -> Selector 'p) mond_process_helpers/select_record)
 
+(pub let select_record {tag arity mapper selector}
+  (select_record_impl selector tag arity mapper))
+
 ;;; Add a catch-all selector handler.
-(pub extern let select_other ~ (Selector 'p -> (Unknown -> 'p) -> Selector 'p) mond_process_helpers/select_other)
+(extern let select_other_impl ~ (Selector 'p -> (Unknown -> 'p) -> Selector 'p) mond_process_helpers/select_other)
+
+(pub let select_other {mapper selector}
+  (select_other_impl selector mapper))
 
 ;;; Add a trapped exit handler.
-(pub extern let select_trapped_exits ~ (Selector 'p
+(extern let select_trapped_exits_impl ~ (Selector 'p
   -> (ExitMessage -> 'p)
   -> Selector 'p) mond_process_helpers/select_trapped_exits)
 
+(pub let select_trapped_exits {mapper selector}
+  (select_trapped_exits_impl selector mapper))
+
 ;;; Add a handler for a specific monitor.
-(pub extern let select_specific_monitor ~ (Selector 'p
+(extern let select_specific_monitor_impl ~ (Selector 'p
   -> Monitor
   -> (Down -> 'p)
   -> Selector 'p) mond_process_helpers/select_specific_monitor)
 
+(pub let select_specific_monitor {monitor_ref mapper selector}
+  (select_specific_monitor_impl selector monitor_ref mapper))
+
 ;;; Remove a specific monitor handler from a selector.
-(pub extern let deselect_specific_monitor ~ (Selector 'p
+(extern let deselect_specific_monitor_impl ~ (Selector 'p
   -> Monitor
   -> Selector 'p) mond_process_helpers/deselect_specific_monitor)
 
+(pub let deselect_specific_monitor {monitor_ref selector}
+  (deselect_specific_monitor_impl selector monitor_ref))
+
 ;;; Add a handler for all down messages.
-(pub extern let select_monitors ~ (Selector 'p -> (Down -> 'p) -> Selector 'p) mond_process_helpers/select_monitors)
+(extern let select_monitors_impl ~ (Selector 'p -> (Down -> 'p) -> Selector 'p) mond_process_helpers/select_monitors)
+
+(pub let select_monitors {mapper selector}
+  (select_monitors_impl selector mapper))
 
 ;;; Discard all messages in the current process mailbox.
 (pub extern let flush_messages ~ (Unit -> Unit) mond_process_helpers/flush_messages)
