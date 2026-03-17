@@ -1,69 +1,428 @@
 (use std/process)
-(use std/result [Result bind])
-(use std/testing [assert_eq])
+(use std/result [Result])
+(use std/testing [assert_eq assert_ne])
+
+(let expect_process_error_kind {result expected_kind}
+  (match result
+    (Error err) ~> (assert_eq (process/error_kind err) expected_kind)
+    (Ok _) ~> (Error "expected process error")))
 
 (test
-  "process/subject send and receive_timeout"
+  "process/self matches owner of new_subject"
+  (let [subject (process/new_subject)]
+    (assert_eq (process/subject_owner subject) (Ok (process/self)))))
+
+(test
+  "process/subject_name returns error for unnamed subjects"
+  (let [subject (process/new_subject)]
+    (assert_eq (process/subject_name subject) (Error ()))))
+
+(test
+  "process/named_subject round-trips through subject_name"
+  (let [name (process/new_name "subject-name")
+        subject (process/named_subject name)]
+    (assert_eq (process/subject_name subject) (Ok name))))
+
+(test
+  "process/named returns error for unregistered names"
+  (let [name (process/new_name "not-registered")]
+    (expect_process_error_kind (process/named name) "name_not_registered")))
+
+(test
+  "process/register then named resolves current pid"
+  (let [reply (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [name (process/new_name "lookup-self")
+                result (let? [_ (assert_eq
+                                (process/register (process/self) name)
+                                (Ok ()))]
+                  (assert_eq (process/named name) (Ok (process/self))))]
+            (do (process/send reply result)
+                ()))))]
+    (assert_eq (process/receive_timeout reply 1000) (Ok (Ok ())))))
+
+(test
+  "process/register returns error when reusing same name"
+  (let [reply (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [name (process/new_name "already-registered")
+                first (process/register (process/self) name)
+                second (process/register (process/self) name)
+                result (let? [_ (assert_eq first (Ok ()))]
+                  (expect_process_error_kind second "name_already_registered"))]
+            (do (process/send reply result)
+                ()))))]
+    (assert_eq (process/receive_timeout reply 1000) (Ok (Ok ())))))
+
+(test
+  "process/unregister removes name"
+  (let [reply (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [name (process/new_name "unregister")
+                result (let? [_ (assert_eq
+                                (process/register (process/self) name)
+                                (Ok ()))]
+                  (let? [_ (assert_eq (process/unregister name) (Ok ()))]
+                    (expect_process_error_kind
+                      (process/named name)
+                      "name_not_registered")))]
+            (do (process/send reply result)
+                ()))))]
+    (assert_eq (process/receive_timeout reply 1000) (Ok (Ok ())))))
+
+(test
+  "process/send and receive on subject"
+  (let [subject (process/new_subject)]
+    (let? [_ (assert_eq (process/send subject "ping") (Ok ()))]
+      (assert_eq (process/receive_timeout subject 1000) (Ok "ping")))))
+
+(test
+  "process/named_subject send and receive in registered process"
+  (let [reply (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [name (process/new_name "named-mailbox")
+                subject (process/named_subject name)
+                result (let? [_ (assert_eq
+                                (process/register (process/self) name)
+                                (Ok ()))]
+                  (let? [_ (assert_eq
+                           (process/send subject "named-pong")
+                           (Ok ()))]
+                    (assert_eq
+                      (process/receive_timeout subject 1000)
+                      (Ok "named-pong"))))]
+            (do (process/send reply result)
+                ()))))]
+    (assert_eq (process/receive_timeout reply 1000) (Ok (Ok ())))))
+
+(test
+  "process/spawn (linked) runs concurrently and returns distinct pid"
   (let [subject (process/new_subject)
-        _       (process/spawn
-          (f {_} ->
-            (do (process/sleep 10)
-                (process/send subject "pong")
-                ())))]
-    (assert_eq (process/receive_timeout subject 1000) (Ok "pong"))))
+        child (process/spawn_linked (f {_} ->
+          (do (process/sleep 10)
+              (process/send subject "linked")
+              ())))]
+    (let? [_ (assert_ne child (process/self))]
+      (assert_eq (process/receive_timeout subject 1000) (Ok "linked")))))
 
 (test
-  "process/subject timeout filters by tag"
+  "process/spawn_unlinked runs concurrently and returns distinct pid"
+  (let [subject (process/new_subject)
+        child (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 10)
+              (process/send subject "unlinked")
+              ())))]
+    (let? [_ (assert_ne child (process/self))]
+      (assert_eq (process/receive_timeout subject 1000) (Ok "unlinked")))))
+
+(test
+  "process/receive_timeout timeout filters by subject tag"
   (let [wanted (process/new_subject)
-        other  (process/new_subject)
-        _      (process/spawn
-          (f {_} ->
-            (do (process/sleep 10)
-                (process/send other "other-message")
-                ())))]
-    (let? [_ (assert_eq (process/receive_timeout wanted 20) (Error ()))]
+        other (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 10)
+              (process/send other "other-message")
+              ())))]
+    (let? [_ (expect_process_error_kind
+              (process/receive_timeout wanted 20)
+              "timeout")]
       (assert_eq (process/receive_timeout other 1000) (Ok "other-message")))))
 
 (test
-  "process/named_subject send and receive_timeout"
-  (let [name    (process/new_name "named-mailbox")
-        subject (process/named_subject name)]
-    (let? [_ (assert_eq (process/register name) (Ok ()))]
-      (let? [_ (assert_eq (process/send subject "named-pong") "named-pong")]
-        (assert_eq (process/receive_timeout subject 1000) (Ok "named-pong"))))))
+  "process/receive_forever waits for next subject message"
+  (let [subject (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 10)
+              (process/send subject "forever")
+              ())))]
+    (assert_eq (process/receive_forever subject) (Ok "forever"))))
 
 (test
-  "process/new_name creates distinct registerable names for same prefix"
-  (let [first_name     (process/new_name "shared-prefix")
-        second_name    (process/new_name "shared-prefix")
-        first_subject  (process/named_subject first_name)
-        second_subject (process/named_subject second_name)
-        ready          (process/new_subject)
-        first_done     (process/new_subject)
-        second_done    (process/new_subject)
-        _              (process/spawn
-          (f {_} ->
-            (let [child_subject (process/named_subject first_name)]
-              (do (process/register first_name)
-                  (process/send ready "ready")
-                  (let [received (process/receive_timeout child_subject 1000)]
-                    (do (process/send first_done received)
-                        ()))))))
-        _              (process/spawn
-          (f {_} ->
-            (let [child_subject (process/named_subject second_name)]
-              (do (process/register second_name)
-                  (process/send ready "ready")
-                  (let [received (process/receive_timeout child_subject 1000)]
-                    (do (process/send second_done received)
-                        ()))))))]
+  "process/new_name creates distinct names with same prefix"
+  (let [first_name (process/new_name "shared-prefix")
+        second_name (process/new_name "shared-prefix")
+        first_sub (process/named_subject first_name)
+        second_sub (process/named_subject second_name)
+        ready (process/new_subject)
+        first_done (process/new_subject)
+        second_done (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [child_sub (process/named_subject first_name)]
+            (do (process/send
+                  ready
+                  (process/register (process/self) first_name))
+                (process/send
+                  first_done
+                  (process/receive_timeout child_sub 1000))
+                ()))))
+        _ (process/spawn_unlinked (f {_} ->
+          (let [child_sub (process/named_subject second_name)]
+            (do (process/send
+                  ready
+                  (process/register (process/self) second_name))
+                (process/send
+                  second_done
+                  (process/receive_timeout child_sub 1000))
+                ()))))
+        _ (process/sleep 10)]
+    (let? [_ (assert_ne first_name second_name)]
+      (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok (Ok ())))]
+        (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok (Ok ())))]
+          (let? [_ (assert_eq (process/send first_sub "first") (Ok ()))]
+            (let? [_ (assert_eq (process/send second_sub "second") (Ok ()))]
+              (let? [_ (assert_eq
+                       (process/receive_timeout first_done 1000)
+                       (Ok (Ok "first")))]
+                (assert_eq
+                  (process/receive_timeout second_done 1000)
+                  (Ok (Ok "second")))))))))))
+
+(test
+  "process/selector select and selector_receive"
+  (let [subject (process/new_subject)
+        selector (process/select subject (process/new_selector))]
+    (let? [_ (assert_eq (process/send subject "one") (Ok ()))]
+      (assert_eq (process/selector_receive selector 1000) (Ok "one")))))
+
+(test
+  "process/selector select_map transforms messages"
+  (let [subject (process/new_subject)
+        selector (process/select_map
+          (process/new_selector)
+          subject
+          (f {value} -> (+ value 1)))]
+    (let? [_ (assert_eq (process/send subject 41) (Ok ()))]
+      (assert_eq (process/selector_receive selector 1000) (Ok 42)))))
+
+(test
+  "process/selector_receive_forever waits for mapped message"
+  (let [subject (process/new_subject)
+        selector (process/select subject (process/new_selector))
+        _ (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 10)
+              (process/send subject "ready")
+              ())))]
+    (assert_eq (process/selector_receive_forever selector) "ready")))
+
+(test
+  "process/deselect removes subject from selector"
+  (let [subject (process/new_subject)
+        selector (process/deselect
+          (process/select subject (process/new_selector))
+          subject)]
+    (let? [_ (assert_eq (process/send subject 1) (Ok ()))]
+      (let? [_ (expect_process_error_kind
+                (process/selector_receive selector 20)
+                "timeout")]
+        (assert_eq (process/receive_timeout subject 1000) (Ok 1))))))
+
+(test
+  "process/select_other catches unmatched inbox messages"
+  (let [subject (process/new_subject)
+        selector (process/select_other
+          (process/new_selector)
+          (f {_} -> "other"))]
+    (let? [_ (assert_eq (process/send subject "ignored") (Ok ()))]
+      (assert_eq (process/selector_receive selector 1000) (Ok "other")))))
+
+(test
+  "process/map_selector transforms selected payloads"
+  (let [subject (process/new_subject)
+        selector (process/map_selector
+          (process/select subject (process/new_selector))
+          (f {value} -> (+ value 2)))]
+    (let? [_ (assert_eq (process/send subject 3) (Ok ()))]
+      (assert_eq (process/selector_receive selector 1000) (Ok 5)))))
+
+(test
+  "process/merge_selector prefers handlers from second selector"
+  (let [subject (process/new_subject)
+        first (process/select_map
+          (process/new_selector)
+          subject
+          (f {value} -> (+ value 1)))
+        second (process/select_map
+          (process/new_selector)
+          subject
+          (f {value} -> (+ value 10)))
+        merged (process/merge_selector first second)]
+    (let? [_ (assert_eq (process/send subject 5) (Ok ()))]
+      (assert_eq (process/selector_receive merged 1000) (Ok 15)))))
+
+(test
+  "process/flush_messages clears mailbox"
+  (let [subject (process/new_subject)]
+    (let? [_ (assert_eq (process/send subject "a") (Ok ()))]
+      (let? [_ (assert_eq (process/send subject "b") (Ok ()))]
+        (do (process/flush_messages)
+            (expect_process_error_kind
+              (process/receive_timeout subject 20)
+              "timeout"))))))
+
+(test
+  "process/send_exit sends normal exit signal"
+  (let [ready (process/new_subject)
+        done (process/new_subject)
+        child (process/spawn_unlinked (f {_} ->
+          (do (process/send ready "ready")
+              (process/sleep 50)
+              (process/send done "done")
+              ())))]
     (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
-      (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
-        (let? [_ (assert_eq (process/send first_subject "first") "first")]
-          (let? [_ (assert_eq (process/send second_subject "second") "second")]
-            (let? [_ (assert_eq
-                     (process/receive_timeout first_done 1000)
-                     (Ok (Ok "first")))]
-              (assert_eq
-                (process/receive_timeout second_done 1000)
-                (Ok (Ok "second"))))))))))
+      (let? [_ (assert_eq (process/send_exit child) ())]
+        (assert_eq (process/receive_timeout done 1000) (Ok "done"))))))
+
+(test
+  "process/kill terminates target process"
+  (let [ready (process/new_subject)
+        done (process/new_subject)
+        child (process/spawn_unlinked (f {_} ->
+          (do (process/send ready "ready")
+              (process/sleep 200)
+              (process/send done "done")
+              ())))]
+    (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
+      (let? [_ (assert_eq (process/kill child) ())]
+        (expect_process_error_kind
+          (process/receive_timeout done 300)
+          "timeout")))))
+
+(test
+  "process/send_abnormal_exit terminates target process"
+  (let [ready (process/new_subject)
+        done (process/new_subject)
+        child (process/spawn_unlinked (f {_} ->
+          (do (process/send ready "ready")
+              (process/sleep 200)
+              (process/send done "done")
+              ())))]
+    (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
+      (let? [_ (assert_eq (process/send_abnormal_exit child "boom") ())]
+        (expect_process_error_kind
+          (process/receive_timeout done 300)
+          "timeout")))))
+
+(test
+  "process/trap_exits with select_trapped_exits"
+  (do (process/trap_exits True)
+      (let [selector (process/select_trapped_exits
+              (process/new_selector)
+              (f {message} -> message))
+            child (process/spawn (f {_} ->
+              (process/send_abnormal_exit (process/self) "boom")))
+            result (match (process/selector_receive selector 1000)
+              (Ok message) ~> (assert_eq (:pid message) child)
+              (Error _) ~> (Error "expected trapped exit"))]
+        (do (process/trap_exits False)
+            result))))
+
+(test
+  "process/select_specific_monitor receives process down"
+  (let [child (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 20)
+              (process/send_abnormal_exit (process/self) "boom")
+              ())))
+        monitor (process/monitor child)
+        selector (process/select_specific_monitor
+          (process/new_selector)
+          monitor
+          (f {down} -> down))]
+    (match (process/selector_receive selector 1000)
+      (Ok _) ~> (Ok ())
+      _ ~> (Error "expected process down"))))
+
+(test
+  "process/deselect_specific_monitor removes monitor handler"
+  (let [child (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 20)
+              (process/send_abnormal_exit (process/self) "boom")
+              ())))
+        monitor (process/monitor child)
+        selector (process/deselect_specific_monitor
+          (process/select_specific_monitor
+            (process/new_selector)
+            monitor
+            (f {down} -> down))
+          monitor)]
+    (let? [_ (expect_process_error_kind
+              (process/selector_receive selector 100)
+              "timeout")]
+      (do (process/flush_messages)
+          (Ok ())))))
+
+(test
+  "process/select_monitors receives monitor down messages"
+  (let [child (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 20)
+              (process/send_abnormal_exit (process/self) "boom")
+              ())))
+        _ (process/monitor child)
+        selector (process/select_monitors
+          (process/new_selector)
+          (f {down} -> down))]
+    (match (process/selector_receive selector 1000)
+      (Ok _) ~> (Ok ())
+      _ ~> (Error "expected process down"))))
+
+(test
+  "process/is_alive, link and unlink"
+  (let [child (process/spawn_unlinked (f {_} ->
+          (do (process/sleep 500)
+              ())))]
+    (let? [_ (assert_eq (process/is_alive child) True)]
+      (let? [_ (assert_eq (process/link child) True)]
+        (do (process/unlink child)
+            (assert_eq (process/is_alive child) True))))))
+
+(test
+  "process/send_after delivers delayed message"
+  (let [subject (process/new_subject)]
+    (match (process/send_after subject 20 "later")
+      (Ok _) ~> (assert_eq (process/receive_timeout subject 1000) (Ok "later"))
+      (Error _) ~> (Error "send_after failed"))))
+
+(test
+  "process/cancel_timer prevents delayed message"
+  (let [subject (process/new_subject)]
+    (match (process/send_after subject 1000 "never")
+      (Ok timer) ~> (let [_ (process/cancel_timer timer)]
+        (expect_process_error_kind
+          (process/receive_timeout subject 100)
+          "timeout"))
+      (Error _) ~> (Error "send_after failed"))))
+
+(test
+  "process/call sends request and waits for reply"
+  (let [ready (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [server_subject (process/new_subject)]
+            (do (process/send ready server_subject)
+                (match (process/receive_forever server_subject)
+                  (Ok reply_subject) ~>
+                    (do (process/send reply_subject "hello")
+                        ())
+                  (Error _) ~> ())))))]
+    (match (process/receive_timeout ready 1000)
+      (Ok server_subject) ~> (assert_eq
+        (process/call server_subject 1000 (f {reply_subject} -> reply_subject))
+        (Ok "hello"))
+      (Error _) ~> (Error "server did not start"))))
+
+(test
+  "process/call_forever sends request and waits without timeout"
+  (let [ready (process/new_subject)
+        _ (process/spawn_unlinked (f {_} ->
+          (let [server_subject (process/new_subject)]
+            (do (process/send ready server_subject)
+                (match (process/receive_forever server_subject)
+                  (Ok reply_subject) ~>
+                    (do (process/send reply_subject "forever")
+                        ())
+                  (Error _) ~> ())))))]
+    (match (process/receive_timeout ready 1000)
+      (Ok server_subject) ~> (assert_eq
+        (process/call_forever
+          server_subject
+          (f {reply_subject} -> reply_subject))
+        (Ok "forever"))
+      (Error _) ~> (Error "server did not start"))))

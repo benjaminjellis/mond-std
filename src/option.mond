@@ -14,7 +14,7 @@
     None ~> False))
 
 ;;; Returns true if the option is a Some and the value inside of it matches a predicate.
-(pub let is_some_and {option function}
+(pub let is_some_and {function option}
   (match option
     (Some x) ~> (function x)
     None ~> False))
@@ -26,7 +26,7 @@
     None ~> True))
 
 ;;; Returns true if the option is a None or the value inside of it matches a predicate.
-(pub let is_none_or {option function}
+(pub let is_none_or {function option}
   (match option
     (Some x) ~> (function x)
     None ~> True))
@@ -38,13 +38,13 @@
     (Error _) ~> None))
 
 ;;; Returns the contained Some value or a provided default.
-(pub let unwrap_or {option default}
+(pub let unwrap_or {default option}
   (match option
     (Some x) ~> x
     None ~> default))
 
 ;;; If Some x apply a function to x
-(pub let map {option function}
+(pub let map {function option}
   (match option
     (Some x) ~> (function x)
     None ~> None))
