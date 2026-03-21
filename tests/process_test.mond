@@ -124,8 +124,8 @@
               (process/send other "other-message")
               ())))]
     (let? [_ (expect_process_error_kind
-              (process/receive_timeout wanted 20)
-              "timeout")]
+             (process/receive_timeout wanted 20)
+             "timeout")]
       (assert_eq (process/receive_timeout other 1000) (Ok "other-message")))))
 
 (test
@@ -188,9 +188,9 @@
   "process/selector select_map transforms messages"
   (let [subject (process/new_subject)
         selector (process/select_map
-          (process/new_selector)
           subject
-          (f {value} -> (+ value 1)))]
+          (f {value} -> (+ value 1))
+          (process/new_selector))]
     (let? [_ (assert_eq (process/send subject 41) (Ok ()))]
       (assert_eq (process/selector_receive selector 1000) (Ok 42)))))
 
@@ -208,20 +208,20 @@
   "process/deselect removes subject from selector"
   (let [subject (process/new_subject)
         selector (process/deselect
-          (process/select subject (process/new_selector))
-          subject)]
+          subject
+          (process/select subject (process/new_selector)))]
     (let? [_ (assert_eq (process/send subject 1) (Ok ()))]
       (let? [_ (expect_process_error_kind
-                (process/selector_receive selector 20)
-                "timeout")]
+               (process/selector_receive selector 20)
+               "timeout")]
         (assert_eq (process/receive_timeout subject 1000) (Ok 1))))))
 
 (test
   "process/select_other catches unmatched inbox messages"
   (let [subject (process/new_subject)
         selector (process/select_other
-          (process/new_selector)
-          (f {_} -> "other"))]
+          (f {_} -> "other")
+          (process/new_selector))]
     (let? [_ (assert_eq (process/send subject "ignored") (Ok ()))]
       (assert_eq (process/selector_receive selector 1000) (Ok "other")))))
 
@@ -229,8 +229,8 @@
   "process/map_selector transforms selected payloads"
   (let [subject (process/new_subject)
         selector (process/map_selector
-          (process/select subject (process/new_selector))
-          (f {value} -> (+ value 2)))]
+          (f {value} -> (+ value 2))
+          (process/select subject (process/new_selector)))]
     (let? [_ (assert_eq (process/send subject 3) (Ok ()))]
       (assert_eq (process/selector_receive selector 1000) (Ok 5)))))
 
@@ -238,14 +238,14 @@
   "process/merge_selector prefers handlers from second selector"
   (let [subject (process/new_subject)
         first (process/select_map
-          (process/new_selector)
           subject
-          (f {value} -> (+ value 1)))
+          (f {value} -> (+ value 1))
+          (process/new_selector))
         second (process/select_map
-          (process/new_selector)
           subject
-          (f {value} -> (+ value 10)))
-        merged (process/merge_selector first second)]
+          (f {value} -> (+ value 10))
+          (process/new_selector))
+        merged (process/merge_selector second first)]
     (let? [_ (assert_eq (process/send subject 5) (Ok ()))]
       (assert_eq (process/selector_receive merged 1000) (Ok 15)))))
 
@@ -283,9 +283,7 @@
               ())))]
     (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
       (let? [_ (assert_eq (process/kill child) ())]
-        (expect_process_error_kind
-          (process/receive_timeout done 300)
-          "timeout")))))
+        (expect_process_error_kind (process/receive_timeout done 300) "timeout")))))
 
 (test
   "process/send_abnormal_exit terminates target process"
@@ -298,16 +296,14 @@
               ())))]
     (let? [_ (assert_eq (process/receive_timeout ready 1000) (Ok "ready"))]
       (let? [_ (assert_eq (process/send_abnormal_exit child "boom") ())]
-        (expect_process_error_kind
-          (process/receive_timeout done 300)
-          "timeout")))))
+        (expect_process_error_kind (process/receive_timeout done 300) "timeout")))))
 
 (test
   "process/trap_exits with select_trapped_exits"
   (do (process/trap_exits True)
       (let [selector (process/select_trapped_exits
-              (process/new_selector)
-              (f {message} -> message))
+              (f {message} -> message)
+              (process/new_selector))
             child (process/spawn (f {_} ->
               (process/send_abnormal_exit (process/self) "boom")))
             result (match (process/selector_receive selector 1000)
@@ -324,9 +320,9 @@
               ())))
         monitor (process/monitor child)
         selector (process/select_specific_monitor
-          (process/new_selector)
           monitor
-          (f {down} -> down))]
+          (f {down} -> down)
+          (process/new_selector))]
     (match (process/selector_receive selector 1000)
       (Ok _) ~> (Ok ())
       _ ~> (Error "expected process down"))))
@@ -339,14 +335,14 @@
               ())))
         monitor (process/monitor child)
         selector (process/deselect_specific_monitor
+          monitor
           (process/select_specific_monitor
-            (process/new_selector)
             monitor
-            (f {down} -> down))
-          monitor)]
+            (f {down} -> down)
+            (process/new_selector)))]
     (let? [_ (expect_process_error_kind
-              (process/selector_receive selector 100)
-              "timeout")]
+             (process/selector_receive selector 100)
+             "timeout")]
       (do (process/flush_messages)
           (Ok ())))))
 
@@ -358,8 +354,8 @@
               ())))
         _ (process/monitor child)
         selector (process/select_monitors
-          (process/new_selector)
-          (f {down} -> down))]
+          (f {down} -> down)
+          (process/new_selector))]
     (match (process/selector_receive selector 1000)
       (Ok _) ~> (Ok ())
       _ ~> (Error "expected process down"))))
@@ -386,9 +382,9 @@
   (let [subject (process/new_subject)]
     (match (process/send_after subject 1000 "never")
       (Ok timer) ~> (let [_ (process/cancel_timer timer)]
-        (expect_process_error_kind
-          (process/receive_timeout subject 100)
-          "timeout"))
+                      (expect_process_error_kind
+                        (process/receive_timeout subject 100)
+                        "timeout"))
       (Error _) ~> (Error "send_after failed"))))
 
 (test
@@ -404,8 +400,11 @@
                   (Error _) ~> ())))))]
     (match (process/receive_timeout ready 1000)
       (Ok server_subject) ~> (assert_eq
-        (process/call server_subject 1000 (f {reply_subject} -> reply_subject))
-        (Ok "hello"))
+                               (process/call
+                                 server_subject
+                                 1000
+                                 (f {reply_subject} -> reply_subject))
+                               (Ok "hello"))
       (Error _) ~> (Error "server did not start"))))
 
 (test
@@ -421,8 +420,8 @@
                   (Error _) ~> ())))))]
     (match (process/receive_timeout ready 1000)
       (Ok server_subject) ~> (assert_eq
-        (process/call_forever
-          server_subject
-          (f {reply_subject} -> reply_subject))
-        (Ok "forever"))
+                               (process/call_forever
+                                 server_subject
+                                 (f {reply_subject} -> reply_subject))
+                               (Ok "forever"))
       (Error _) ~> (Error "server did not start"))))
