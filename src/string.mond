@@ -25,3 +25,33 @@
 
 ;;; Returns true if Needle is found anywhere within Haystack.
 (pub extern let contains ~ (String -> String -> Bool) mond_string_helpers/contains)
+
+;;; Checks whether the first `String` ends with the second one.
+(pub extern let ends_with ~ (String -> String -> Bool) mond_string_helpers/string_ends_with)
+(pub extern let grapheme_slice ~ (String -> Int -> Int -> String) mond_string_helpers/slice)
+(pub extern let to_graphemes ~ (String -> (List String)) mond_string_helpers/to_graphemes)
+
+(pub let slice {string idx len}
+  (match (<= len 0)
+    True ~> ""
+    False ~>
+      (match (< idx 0)
+        True ~> (let [translated_idx (+ (length string) idx)]
+                  (match (< translated_idx 0)
+                    True ~> ""
+                    False ~> (grapheme_slice string translated_idx len)))
+        False ~> (grapheme_slice string idx len))))
+
+;;; Drops *n* graphemes from the end of a `String`.
+;;; This function traverses the full string, so it runs in linear time with the
+;;; size of the string. Avoid using this in a loop.
+(pub let drop_end {from up_to}
+  (match (<= up_to 0)
+    True ~> from
+    False ~> (slice from 0 (- (length from) up_to))))
+
+;;; Drops *n* graphemes from the start of a `String`.
+(pub let drop_start {from up_to}
+  (match (<= up_to 0)
+    True ~> from
+    False ~> (slice from up_to (length from))))

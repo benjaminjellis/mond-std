@@ -1,0 +1,68 @@
+(use result [Result])
+(use order [Order])
+
+;;; BitArray is a sequence of binary data of any length.
+(pub extern type BitArray)
+
+;;; Converts a UTF-8 String into a BitArray.
+(pub extern let from_string ~ (String -> BitArray) mond_bit_array_helpers/identity)
+
+;;; Returns the number of bits in a bit array.
+(pub extern let bit_size ~ (BitArray -> Int) erlang/bit_size)
+
+;;; Returns the number of bytes in a bit array.
+(pub extern let byte_size ~ (BitArray -> Int) erlang/byte_size)
+
+;;; Pads a bit array with zeros so that it is a whole number of bytes.
+(pub extern let pad_to_bytes ~ (BitArray -> BitArray) mond_bit_array_helpers/pad_to_bytes)
+
+;;; Creates a new bit array by joining two bit arrays.
+(pub let append {first second}
+  (concat [first second]))
+
+;;; Extracts a sub-section of a bit array.
+;;; Position and length are in bits.
+;;; Negative length slices relative to the end of the input.
+(pub extern let slice ~ (BitArray -> Int -> Int -> Result BitArray Unit) mond_bit_array_helpers/slice)
+
+;;; Tests whether a bit array is valid UTF-8.
+(pub let is_utf8 {bits}
+  (match (to_string bits)
+    (Ok _) ~> True
+    (Error _) ~> False))
+
+;;; Converts a bit array to a UTF-8 string.
+;;; Returns Error Unit for invalid UTF-8.
+(pub extern let to_string ~ (BitArray -> Result String Unit) mond_bit_array_helpers/bit_array_to_string)
+
+;;; Creates a new bit array by joining multiple bit arrays.
+(pub extern let concat ~ ((List BitArray) -> BitArray) mond_bit_array_helpers/concat)
+
+;;; Encodes a BitArray into base64.
+;;; If input is not byte-aligned it is padded with zero bits first.
+(pub extern let base64_encode ~ (BitArray -> Bool -> String) mond_bit_array_helpers/base64_encode)
+
+;;; Decodes a base64 string into a BitArray.
+(pub extern let base64_decode ~ (String -> Result BitArray Unit) mond_bit_array_helpers/base64_decode)
+
+;;; Encodes a BitArray into URL-safe base64.
+(pub extern let base64_url_encode ~ (BitArray -> Bool -> String) mond_bit_array_helpers/base64_url_encode)
+
+;;; Decodes a URL-safe base64 string into a BitArray.
+(pub extern let base64_url_decode ~ (String -> Result BitArray Unit) mond_bit_array_helpers/base64_url_decode)
+
+;;; Encodes a BitArray into lowercase base16.
+;;; If input is not byte-aligned it is padded with zero bits first.
+(pub extern let base16_encode ~ (BitArray -> String) mond_bit_array_helpers/base16_encode)
+
+;;; Decodes a base16 string into a BitArray.
+(pub extern let base16_decode ~ (String -> Result BitArray Unit) mond_bit_array_helpers/base16_decode)
+
+;;; Converts a BitArray to printable decimal-byte syntax.
+(pub extern let inspect ~ (BitArray -> String) mond_bit_array_helpers/inspect)
+
+;;; Compare two bit arrays as sequences of bytes.
+(pub extern let compare ~ (BitArray -> BitArray -> Order) mond_bit_array_helpers/compare)
+
+;;; Checks whether the first BitArray starts with the second one.
+(pub extern let starts_with ~ (BitArray -> BitArray -> Bool) mond_bit_array_helpers/starts_with)

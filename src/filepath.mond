@@ -1,0 +1,85 @@
+(use string)
+(use list)
+(use result [Result])
+(use option [Option])
+(pub extern let is_windows ~ (Unit -> Bool) mond_filepath_helpers/is_windows)
+
+(let relative {path}
+  (match (= (string/slice path 0 1) "/")
+    True ~> (relative (string/drop_start path 1))
+    False ~> path))
+
+(pub let join {left right}
+  (remove_trailing_slash
+    (match left right
+      _ "/" ~> left
+      "" _ ~> (relative right)
+      "/" candidate if (= (string/slice candidate 0 1) "/") ~> candidate
+      "/" _ ~> (string/concat left right)
+      _ _ ~> (string/concat
+               (string/concat (remove_trailing_slash left) "/")
+               (relative right)))))
+
+(pub let remove_trailing_slash {path}
+  (match (string/ends_with path "/")
+    True ~> (string/drop_end path 1)
+    False ~> path))
+
+(pub let split_unix {path}
+  (|> (match (string/split path "/")
+        [""] ~> []
+        ["" | rest] ~> (list/append ["/"] rest)
+        rest ~> rest)
+      (list/filter (f {x} -> (!= x "")))))
+
+;;; Warning there is currently no windows support
+(pub let split {path}
+  (split_unix path))
+
+;;; Get the base name of a path, i.e. the last path segment.
+;;; Returns an empty string for the root path "/".
+(pub let base_name {path}
+  (match (= path "/")
+    True ~> ""
+    False ~> (let [segments (split path)
+                   last_index (- (list/length segments) 1)]
+               (match (list/nth last_index segments)
+                 (Some name) ~> name
+                 None ~> ""))))
+
+(pub let extension {path}
+  (let [file (base_name path)]
+    (match (string/split file ".")
+      ["" _] ~> (Error ())
+      [_ ext] ~> (Ok ext)
+      [_ | rest] ~> (list/last rest)
+      _ ~> (Error ()))))
+
+(pub let strip_extension {path}
+  (match (extension path)
+    (Ok ext) ~> (string/drop_end path (+ (string/length ext) 1))
+    (Error _) ~> path))
+
+(let get_directory_name {path acc segment}
+  (match path
+    ["/" | rest] ~> (get_directory_name rest (string/concat acc segment) "/")
+    [first | rest] ~> (get_directory_name
+                        rest
+                        acc
+                        (string/concat segment first))
+    [] ~> acc))
+
+(pub let directory_name {path}
+  (let [path (remove_trailing_slash path)
+        graphemes (string/to_graphemes path)]
+    (match graphemes
+      ["/" | rest] ~> (get_directory_name rest "/" "")
+      _ ~> (get_directory_name graphemes "" ""))))
+
+;; fn permission_to_integer(permission: Permission) -> Int {
+;;   case permission {
+;;     Read -> 0o4
+;;     Write -> 0o2
+;;     Execute -> 0o1
+;;   }
+;; }

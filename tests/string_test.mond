@@ -30,3 +30,21 @@
     (assert_ne (string/contains "hello world" "xyz") True)))
 
 (test "string/split" (assert_eq (string/split "a,b,c" ",") ["a" "b" "c"]))
+
+(test
+  "string/drop_end"
+  (assert_eq (string/drop_end "Cigarette Smoking Man" 2) "Cigarette Smoking M"))
+
+(test
+  "string/drop_start"
+  (assert_eq
+    (string/drop_start "Cigarette Smoking Man" 2)
+    "garette Smoking Man"))
+
+(test
+  "string/to_graphemes ascii"
+  (assert_eq (string/to_graphemes "abc") ["a" "b" "c"]))
+
+(test
+  "string/to_graphemes unicode grapheme cluster"
+  (assert_eq (string/to_graphemes "🏳️‍🌈a") ["🏳️‍🌈" "a"]))

@@ -1,0 +1,97 @@
+(use std/list)
+(use std/result [Result])
+(use std/set)
+(use std/testing [assert assert_eq])
+
+(let sample_set {}
+  (set/from_list [1 2 3]))
+
+(test "set/new starts empty" (assert_eq (set/is_empty (set/new)) True))
+
+(test
+  "set/insert deduplicates and contains member"
+  (let [s (set/insert (set/insert (set/new) 1) 1)]
+    (let? [_ (assert (set/contains s 1))]
+      (assert_eq (set/size s) 1))))
+
+(test
+  "set/delete removes a member"
+  (assert_eq (set/contains (set/delete (sample_set) 2) 2) False))
+
+(test
+  "set/from_list and set/to_list"
+  (assert_eq (list/sort (set/to_list (set/from_list [1 1 2 4 3 2]))) [1 2 3 4]))
+
+(test
+  "set/fold combines all members"
+  (assert_eq (set/fold (sample_set) 0 (f {acc member} -> (+ acc member))) 6))
+
+(test
+  "set/filter keeps matching members"
+  (assert_eq
+    (list/sort (set/to_list (set/filter (sample_set) (f {x} -> (> x 1)))))
+    [2 3]))
+
+(test
+  "set/map transforms members"
+  (assert_eq
+    (list/sort (set/to_list (set/map (sample_set) (f {x} -> (* x 2)))))
+    [2 4 6]))
+
+(test
+  "set/drop removes members in list"
+  (assert_eq (list/sort (set/to_list (set/drop (sample_set) [1 3 9]))) [2]))
+
+(test
+  "set/take keeps only listed members"
+  (assert_eq (list/sort (set/to_list (set/take (sample_set) [1 3 9]))) [1 3]))
+
+(test
+  "set/union includes members from both sets"
+  (assert_eq
+    (list/sort
+      (set/to_list (set/union (set/from_list [1 2]) (set/from_list [2 3]))))
+    [1 2 3]))
+
+(test
+  "set/intersection keeps shared members"
+  (assert_eq
+    (list/sort
+      (set/to_list
+        (set/intersection (set/from_list [1 2]) (set/from_list [2 3]))))
+    [2]))
+
+(test
+  "set/difference keeps only first-exclusive members"
+  (assert_eq
+    (list/sort
+      (set/to_list
+        (set/difference (set/from_list [1 2]) (set/from_list [2 3 4]))))
+    [1]))
+
+(test
+  "set/is_subset works for positive and negative cases"
+  (let? [_ (assert (set/is_subset (set/from_list [1]) (set/from_list [1 2])))]
+    (assert_eq
+      (set/is_subset (set/from_list [1 2 3]) (set/from_list [3 4 5]))
+      False)))
+
+(test
+  "set/is_disjoint works for positive and negative cases"
+  (let? [_ (assert
+           (set/is_disjoint (set/from_list [1 2 3]) (set/from_list [4 5 6])))]
+    (assert_eq
+      (set/is_disjoint (set/from_list [1 2 3]) (set/from_list [3 4 5]))
+      False)))
+
+(test
+  "set/symmetric_difference keeps members not in both"
+  (assert_eq
+    (list/sort
+      (set/to_list
+        (set/symmetric_difference (set/from_list [1 2 3]) (set/from_list [3 4]))))
+    [1 2 4]))
+
+(test
+  "set/each returns unit"
+  (assert_eq (set/each (sample_set) (f {x} -> x)) ()))

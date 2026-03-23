@@ -1,5 +1,6 @@
 ;;; list.mond — list helpers backed by Erlang lists
 (use option [Option])
+(use result [Result])
 
 ;;; Returns the number of elements in the list.
 (pub extern let length ~ ((List 'a) -> Int) erlang/length)
@@ -33,3 +34,11 @@
 
 ;;; Flattens a list of lists into a single list.
 (pub extern let flatten ~ ((List (List 'a)) -> (List 'a)) lists/flatten)
+
+;;; Returns the last element in the given list.
+;;;  Returns `Error ()` if the list is empty.
+(pub let last {list}
+  (match list
+    [] ~> (Error ())
+    [last] ~> (Ok last)
+    [_ | t] ~> (last t)))

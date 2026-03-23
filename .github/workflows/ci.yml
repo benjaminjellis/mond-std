@@ -10,10 +10,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Install erlang
-        run: sudo apt update && sudo apt install -y erlang
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.0.2"
+          rebar3-version: "3.24.0"
+      - name: Verify OTP
+        run: erl -noshell -eval 'io:format("~s~n",[erlang:system_info(otp_release)]), halt().'
       - name: Install mond
-        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.9 bahn
+        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.12 bahn
       - name: Check formatting
         run: bahn format --check
       - name: Build

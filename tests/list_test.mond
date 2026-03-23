@@ -74,3 +74,15 @@
 (test
   "list/flatten handles empty nested lists"
   (assert_eq (list/flatten [[] [1 2] [] [3]]) [1 2 3]))
+
+(test
+  "list/last returns error for empty list"
+  (assert_eq (list/last []) (Error ())))
+
+(test
+  "list/last returns only element for singleton list"
+  (assert_eq (list/last [42]) (Ok 42)))
+
+(test
+  "list/last returns final element for non-empty list"
+  (assert_eq (list/last [1 2 3 4]) (Ok 4)))

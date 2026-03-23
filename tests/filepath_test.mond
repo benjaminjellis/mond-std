@@ -1,0 +1,123 @@
+(use std/filepath)
+(use std/result [Result])
+(use std/testing [assert_eq])
+
+(test
+  "filepath/extension returns simple extension"
+  (assert_eq (filepath/extension "/usr/local/bin/mond.txt") (Ok "txt")))
+
+(test
+  "filepath/extension returns last segment for multi-dot file"
+  (assert_eq (filepath/extension "/tmp/archive.tar.gz") (Ok "gz")))
+
+(test
+  "filepath/extension returns error for hidden file without extension"
+  (assert_eq (filepath/extension ".bashrc") (Error ())))
+
+(test
+  "filepath/extension returns error when no extension exists"
+  (assert_eq (filepath/extension "/usr/local/bin/mond") (Error ())))
+
+(test
+  "filepath/join combines regular paths"
+  (assert_eq (filepath/join "/usr/local" "bin") "/usr/local/bin"))
+
+(test
+  "filepath/join handles absolute right on root left"
+  (assert_eq (filepath/join "/" "/bin") "/bin"))
+
+(test
+  "filepath/join normalises right when left is empty"
+  (assert_eq (filepath/join "" "/bin") "bin"))
+
+(test
+  "filepath/join strips leading slash from right for non-root left"
+  (assert_eq (filepath/join "/usr/local" "/bin") "/usr/local/bin"))
+
+(test
+  "filepath/join normalises trailing slash on left"
+  (assert_eq (filepath/join "/usr/local/" "bin") "/usr/local/bin"))
+
+(test
+  "filepath/join with right slash returns left then trims"
+  (assert_eq (filepath/join "/" "/") ""))
+
+(test
+  "filepath/remove_trailing_slash trims final slash"
+  (assert_eq (filepath/remove_trailing_slash "/usr/local/") "/usr/local"))
+
+(test
+  "filepath/remove_trailing_slash on root follows current semantics"
+  (assert_eq (filepath/remove_trailing_slash "/") ""))
+
+(test
+  "filepath/split_unix absolute path"
+  (assert_eq (filepath/split_unix "/usr/local/bin/") ["/" "usr" "local" "bin"]))
+
+(test
+  "filepath/split_unix root path"
+  (assert_eq (filepath/split_unix "/") ["/"]))
+
+(test "filepath/split_unix empty path" (assert_eq (filepath/split_unix "") []))
+
+(test
+  "filepath/split_unix collapses repeated separators"
+  (assert_eq (filepath/split_unix "usr//local///bin/") ["usr" "local" "bin"]))
+
+(test
+  "filepath/split delegates to split_unix"
+  (assert_eq (filepath/split "usr/local/bin") ["usr" "local" "bin"]))
+
+(test
+  "filepath/base_name returns final segment"
+  (assert_eq (filepath/base_name "/usr/local/bin/") "bin"))
+
+(test
+  "filepath/base_name root path is empty"
+  (assert_eq (filepath/base_name "/") ""))
+
+(test
+  "filepath/base_name empty path is empty"
+  (assert_eq (filepath/base_name "") ""))
+
+(test
+  "filepath/strip_extension removes only last extension"
+  (assert_eq
+    (filepath/strip_extension "/tmp/archive.tar.gz")
+    "/tmp/archive.tar"))
+
+(test
+  "filepath/strip_extension keeps path when no extension"
+  (assert_eq (filepath/strip_extension "/tmp/archive") "/tmp/archive"))
+
+(test
+  "filepath/strip_extension keeps hidden file without extension"
+  (assert_eq (filepath/strip_extension ".bashrc") ".bashrc"))
+
+(test
+  "filepath/directory_name absolute path"
+  (assert_eq (filepath/directory_name "/usr/local/bin") "/usr/local"))
+
+(test
+  "filepath/directory_name relative path"
+  (assert_eq (filepath/directory_name "usr/local/bin") "usr/local"))
+
+(test
+  "filepath/directory_name file in cwd"
+  (assert_eq (filepath/directory_name "mond.txt") ""))
+
+(test
+  "filepath/directory_name root path is empty"
+  (assert_eq (filepath/directory_name "/") ""))
+
+(test
+  "filepath/directory_name ignores trailing slash"
+  (assert_eq (filepath/directory_name "/usr/local/bin/") "/usr/local"))
+
+(test
+  "filepath/extension of hidden multi-dot file returns last segment"
+  (assert_eq (filepath/extension ".config.toml") (Ok "toml")))
+
+(test
+  "filepath/extension for trailing dot is empty string"
+  (assert_eq (filepath/extension "file.") (Ok "")))

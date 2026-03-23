@@ -1,0 +1,45 @@
+;;; Ordering relation used by comparison functions.
+(pub type Order
+  [Lt
+   Eq
+   Gt])
+
+;;; Invert an order (`Lt` <-> `Gt`, `Eq` unchanged).
+(pub let negate {order}
+  (match order
+    Lt ~> Gt
+    Eq ~> Eq
+    Gt ~> Lt))
+
+;;; Convert an order to -1/0/1.
+(pub let to_int {order}
+  (match order
+    Lt ~> -1
+    Eq ~> 0
+    Gt ~> 1))
+
+;;; Compare two Order values.
+(pub let compare {a b}
+  (match a b
+    x y if (= x y) ~> Eq
+    Lt _ ~> Lt
+    Eq Gt ~> Lt
+    _ _ ~> Gt))
+
+;;; Reverse an ordering function.
+(pub let reverse {orderer}
+  (f {a b} -> (orderer b a)))
+
+;;; Return a fallback order when the first is Eq.
+(pub let break_tie {order other}
+  (match order
+    Lt ~> order
+    Gt ~> order
+    Eq ~> other))
+
+;;; Lazily compute a fallback order when the first is Eq.
+(pub let lazy_break_tie {order comparison}
+  (match order
+    Lt ~> order
+    Gt ~> order
+    Eq ~> (comparison)))

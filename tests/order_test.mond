@@ -1,0 +1,32 @@
+(use std/order [Order])
+(use std/order)
+(use std/result [Result])
+(use std/testing [assert_eq])
+
+(test
+  "order/negate"
+  (let? [_ (assert_eq (order/negate Lt) Gt)]
+    (let? [_ (assert_eq (order/negate Eq) Eq)]
+      (assert_eq (order/negate Gt) Lt))))
+
+(test
+  "order/to_int"
+  (let? [_ (assert_eq (order/to_int Lt) -1)]
+    (let? [_ (assert_eq (order/to_int Eq) 0)]
+      (assert_eq (order/to_int Gt) 1))))
+
+(test
+  "order/compare"
+  (let? [_ (assert_eq (order/compare Eq Lt) Gt)]
+    (let? [_ (assert_eq (order/compare Lt Eq) Lt)]
+      (assert_eq (order/compare Gt Lt) Gt))))
+
+(test
+  "order/break_tie"
+  (let? [_ (assert_eq (order/break_tie Lt Eq) Lt)]
+    (assert_eq (order/break_tie Eq Gt) Gt)))
+
+(test
+  "order/lazy_break_tie"
+  (let? [_ (assert_eq (order/lazy_break_tie Gt (f {_} -> Lt)) Gt)]
+    (assert_eq (order/lazy_break_tie Eq (f {_} -> Lt)) Lt)))

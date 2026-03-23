@@ -1,0 +1,112 @@
+(use list)
+(use map [Map])
+(use option [Option])
+(use pair [Pair])
+
+;;; A set is a collection of unique members.
+(pub type ['member] Set
+  [(:dict ~ (Map 'member Unit))])
+
+;;; Create a new empty set.
+(pub let new {}
+  (Set :dict (map/new)))
+
+;;; Number of members in a set.
+(pub let size {set}
+  (map/size (:dict set)))
+
+;;; True if the set has no members.
+(pub let is_empty {set}
+  (= set (new)))
+
+;;; Insert a member into a set.
+(pub let insert {set member}
+  (Set :dict (map/put member () (:dict set))))
+
+;;; True if a member exists in a set.
+(pub let contains {set member}
+  (match (map/get member (:dict set))
+    (Some _) ~> True
+    None ~> False))
+
+;;; Delete a member from a set.
+(pub let delete {set member}
+  (Set :dict (map/remove member (:dict set))))
+
+;;; Convert a set to a list of members.
+(pub let to_list {set}
+  (map/keys (:dict set)))
+
+;;; Create a set from a list.
+(pub let from_list {members}
+  (list/foldl (f {member acc} -> (insert acc member)) (new) members))
+
+;;; Fold over all members in a set.
+(pub let fold {set initial reducer}
+  (list/foldl (f {member acc} -> (reducer acc member)) initial (to_list set)))
+
+;;; Keep only members that satisfy a predicate.
+(pub let filter {set predicate}
+  (fold
+    set
+    (new)
+    (f {acc member} -> (if (predicate member) (insert acc member) acc))))
+
+;;; Map members to a new set.
+(pub let map {set fun}
+  (fold set (new) (f {acc member} -> (insert acc (fun member)))))
+
+;;; Remove all members present in the given list.
+(pub let drop {set disallowed}
+  (list/foldl (f {member acc} -> (delete acc member)) set disallowed))
+
+;;; Keep only members present in the given list.
+(pub let take {set desired}
+  (list/foldl
+    (f {member acc} -> (if (contains set member) (insert acc member) acc))
+    (new)
+    desired))
+
+(let order {first second}
+  (if (> (size first) (size second))
+    (Pair :first first :second second)
+    (Pair :first second :second first)))
+
+;;; Union of two sets.
+(pub let union {first second}
+  (let [ordered (order first second)
+        larger (:first ordered)
+        smaller (:second ordered)]
+    (fold smaller larger insert)))
+
+;;; Intersection of two sets.
+(pub let intersection {first second}
+  (let [ordered (order first second)
+        larger (:first ordered)
+        smaller (:second ordered)]
+    (take larger (to_list smaller))))
+
+;;; Members in first set that are not in second set.
+(pub let difference {first second}
+  (drop first (to_list second)))
+
+;;; True if first is a subset of second.
+(pub let is_subset {first second}
+  (= (intersection first second) first))
+
+;;; True if two sets have no shared members.
+(pub let is_disjoint {first second}
+  (= (intersection first second) (new)))
+
+;;; Members present in either set, but not both.
+(pub let symmetric_difference {first second}
+  (difference (union first second) (intersection first second)))
+
+;;; Call a function for each member.
+(pub let each {set fun}
+  (fold
+    set
+    ()
+    (f {nil member} ->
+      (do (fun member)
+          nil))))

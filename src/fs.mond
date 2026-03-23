@@ -1,0 +1,404 @@
+(use filepath)
+(use bit_array)
+(use bit_array [BitArray])
+(use list)
+(use string)
+(use result [Result])
+(use int)
+(use set [Set])
+(use set)
+
+;;; This type represents all of the reasons for why a file system operation could fail.
+(pub type FileError
+  [Eacces
+   Eagain
+   Ebadf
+   Ebadmsg
+   Ebusy
+   Edeadlk
+   Edeadlock
+   Edquot
+   Eexist
+   Efault
+   Efbig
+   Eftype
+   Eintr
+   Einval
+   Eio
+   Eisdir
+   Eloop
+   Emfile
+   Emlink
+   Emultihop
+   Enametoolong
+   Enfile
+   Enobufs
+   Enodev
+   Enolck
+   Enolink
+   Enoent
+   Enomem
+   Enospc
+   Enosr
+   Enostr
+   Enosys
+   Enotblk
+   Enotdir
+   Enotsup
+   Enxio
+   Eopnotsupp
+   Eoverflow
+   Eperm
+   Epipe
+   Erange
+   Erofs
+   Espipe
+   Esrch
+   Estale
+   Etxtbsy
+   Exdev
+   NotUtf8
+   (Unknown ~ String)])
+
+;;; Convert an error into a human-readable description.
+(pub let describe_error {error}
+  (match error
+    Eperm ~> "Operation not permitted"
+    Enoent ~> "No such file or directory"
+    Esrch ~> "No such process"
+    Eintr ~> "Interrupted system call"
+    Eio ~> "Input/output error"
+    Enxio ~> "Device not configured"
+    Ebadf ~> "Bad file descriptor"
+    Edeadlk ~> "Resource deadlock avoided"
+    Edeadlock ~> "Resource deadlock avoided"
+    Enomem ~> "Cannot allocate memory"
+    Eacces ~> "Permission denied"
+    Efault ~> "Bad address"
+    Enotblk ~> "Block device required"
+    Ebusy ~> "Resource busy"
+    Eexist ~> "File exists"
+    Exdev ~> "Cross-device link"
+    Enodev ~> "Operation not supported by device"
+    Enotdir ~> "Not a directory"
+    Eisdir ~> "Is a directory"
+    Einval ~> "Invalid argument"
+    Enfile ~> "Too many open files in system"
+    Emfile ~> "Too many open files"
+    Etxtbsy ~> "Text file busy"
+    Efbig ~> "File too large"
+    Enospc ~> "No space left on device"
+    Espipe ~> "Illegal seek"
+    Erofs ~> "Read-only file system"
+    Emlink ~> "Too many links"
+    Epipe ~> "Broken pipe"
+    Erange ~> "Result too large"
+    Eagain ~> "Resource temporarily unavailable"
+    Enotsup ~> "Operation not supported"
+    Enobufs ~> "No buffer space available"
+    Eloop ~> "Too many levels of symbolic links"
+    Enametoolong ~> "File name too long"
+    Edquot ~> "Disc quota exceeded"
+    Estale ~> "Stale NFS file handle"
+    Enolck ~> "No locks available"
+    Enosys ~> "Function not implemented"
+    Eftype ~> "Inappropriate file type or format"
+    Eoverflow ~> "Value too large to be stored in data type"
+    Ebadmsg ~> "Bad message"
+    Emultihop ~> "Multihop attempted"
+    Enolink ~> "Link has been severed"
+    Enosr ~> "No STREAM resources"
+    Enostr ~> "Not a STREAM"
+    Eopnotsupp ~> "Operation not supported on socket"
+    NotUtf8 ~> "File not UTF-8 encoded"
+    (Unknown inner) ~> (string/concat "Unknown error: " inner)))
+
+;;; Represents file information from read_file_info/stat.
+(pub type FileInfo
+  [(:size ~ Int)
+   (:mode ~ Int)
+   (:nlink ~ Int)
+   (:inode ~ Int)
+   (:user_id ~ Int)
+   (:group_id ~ Int)
+   (:dev ~ Int)
+   (:atime_seconds ~ Int)
+   (:mtime_seconds ~ Int)
+   (:ctime_seconds ~ Int)])
+
+;;; Represents a file permission.
+(pub type Permission
+  [Read
+   Write
+   Execute])
+
+;;; Represents a set of file permissions for a given file.
+(pub type FilePermissions
+  [(:user ~ Set Permission)
+   (:group ~ Set Permission)
+   (:other ~ Set Permission)])
+
+;;; An enumeration of different types of files.
+(pub type FileType
+  [File
+   Directory
+   Symlink
+   Other])
+
+(let permission_digit_from_list {permissions}
+  (match permissions
+    [] ~> 0
+    [permission | rest] ~> (+
+                             (permission_to_integer permission)
+                             (permission_digit_from_list rest))))
+
+(let make_permission_digit {permissions}
+  (permission_digit_from_list (set/to_list permissions)))
+
+(let integer_to_permissions {integer}
+  (match (int/bitwise_and integer 7)
+    7 ~> (set/from_list [Read Write Execute])
+    6 ~> (set/from_list [Read Write])
+    5 ~> (set/from_list [Read Execute])
+    4 ~> (set/from_list [Read])
+    3 ~> (set/from_list [Write Execute])
+    2 ~> (set/from_list [Write])
+    1 ~> (set/from_list [Execute])
+    0 ~> (set/new)
+    ;; This branch is unreachable due to the bitwise mask, but Mond has no panic.
+    _ ~> (set/new)))
+
+;; NOTE: this uses decimal Ints (Mond currently has no octal literal syntax).
+(pub let permission_to_integer {permission}
+  (match permission
+    Read ~> 4
+    Write ~> 2
+    Execute ~> 1))
+
+(let octal_to_file_permissions {octal}
+  (FilePermissions
+    :user (integer_to_permissions (int/bitwise_shift_right octal 6))
+    :group (integer_to_permissions (int/bitwise_shift_right octal 3))
+    :other (integer_to_permissions octal)))
+
+;;; Extract the file permissions from a given FileInfo value in octal representation.
+(pub let file_info_permissions_octal {info}
+  ;; NOTE: 0o777 = 511
+  (int/bitwise_and (:mode info) 511))
+
+;;; Extract the FilePermissions from a given FileInfo value.
+(pub let file_info_permissions {info}
+  (octal_to_file_permissions (file_info_permissions_octal info)))
+
+;;; Convert FilePermissions to their octal integer representation.
+(pub let file_permissions_to_octal {permissions}
+  (+
+    (+
+      (* (make_permission_digit (:user permissions)) 64)
+      (* (make_permission_digit (:group permissions)) 8))
+    (make_permission_digit (:other permissions))))
+
+;;; Extract the file type from a given FileInfo value.
+(pub let file_info_type {info}
+  ;; S_IFMT and related constants.
+  ;; 0o170000 = 61440, 0o100000 = 32768, 0o40000 = 16384, 0o120000 = 40960
+  (match (int/bitwise_and (:mode info) 61440)
+    32768 ~> File
+    16384 ~> Directory
+    40960 ~> Symlink
+    _ ~> Other))
+
+;;; Get information about a file. Follows symlinks.
+(pub extern let file_info ~ (String -> Result FileInfo FileError) mond_fs_helpers/file_info)
+
+;;; Get information about a symlink itself.
+(pub extern let link_info ~ (String -> Result FileInfo FileError) mond_fs_helpers/link_info)
+
+;;; Read a file's contents as a string.
+(pub let read {filepath}
+  (match (read_bits filepath)
+    (Ok bits) ~>
+      (match (bit_array/to_string bits)
+        (Ok str) ~> (Ok str)
+        (Error _) ~> (Error NotUtf8))
+    (Error err) ~> (Error err)))
+
+;;; Write a string to a file.
+(pub let write {filepath contents}
+  (write_bits filepath (bit_array/from_string contents)))
+
+;;; Delete a file or directory recursively.
+(pub extern let delete ~ (String -> Result Unit FileError) mond_fs_helpers/delete)
+
+;;; Delete a single file.
+(pub extern let delete_file ~ (String -> Result Unit FileError) mond_fs_helpers/delete_file)
+
+;;; Delete all files/directories in a list of paths, ignoring missing paths.
+(pub let delete_all {paths}
+  (match paths
+    [] ~> (Ok ())
+    [path | rest] ~>
+      (match (delete path)
+        (Ok _) ~> (delete_all rest)
+        (Error Enoent) ~> (delete_all rest)
+        (Error err) ~> (Error err))))
+
+;;; Append a string to a file.
+(pub let append {filepath contents}
+  (append_bits filepath (bit_array/from_string contents)))
+
+;;; Read a file's contents as a bit-array.
+(pub extern let read_bits ~ (String -> Result BitArray FileError) mond_fs_helpers/read_bits)
+
+;;; Write a bit-array to a file.
+(pub extern let write_bits ~ (String -> BitArray -> Result Unit FileError) mond_fs_helpers/write_bits)
+
+;;; Append a bit-array to a file.
+(pub extern let append_bits ~ (String -> BitArray -> Result Unit FileError) mond_fs_helpers/append_bits)
+
+;;; Checks if the path exists and is a directory.
+(pub extern let is_directory ~ (String -> Result Bool FileError) mond_fs_helpers/is_directory)
+
+;;; Create a directory at a path.
+(pub extern let create_directory ~ (String -> Result Unit FileError) mond_fs_helpers/create_directory)
+
+;;; Create a symbolic link called `symlink` pointing to `target`.
+(pub extern let create_symlink ~ (String -> String -> Result Unit FileError) mond_fs_helpers/create_symlink)
+
+;;; Create a hard link called `link` pointing to `target`.
+(pub extern let create_link ~ (String -> String -> Result Unit FileError) mond_fs_helpers/create_link)
+
+;;; List directory contents (non-recursive).
+(pub extern let read_directory ~ (String -> Result (List String) FileError) mond_fs_helpers/read_directory)
+
+;;; Checks if the path exists and is a file.
+(pub extern let is_file ~ (String -> Result Bool FileError) mond_fs_helpers/is_file)
+
+;;; Checks if the path exists and is a symbolic link.
+(pub extern let is_symlink ~ (String -> Result Bool FileError) mond_fs_helpers/is_symlink)
+
+;;; Create an empty file. Returns Error Eexist if file/directory already exists.
+(pub let create_file {filepath}
+  (match (is_file filepath)
+    (Ok True) ~> (Error Eexist)
+    (Ok False) ~>
+      (match (is_directory filepath)
+        (Ok True) ~> (Error Eexist)
+        (Ok False) ~> (write_bits filepath (bit_array/from_string ""))
+        (Error err) ~> (Error err))
+    (Error err) ~> (Error err)))
+
+;;; Recursively creates directories for a given path.
+(pub let create_directory_all {dirpath}
+  (do_create_dir_all (string/concat dirpath "/")))
+
+(extern let do_create_dir_all ~ (String -> Result Unit FileError) mond_fs_helpers/create_dir_all)
+
+;;; Copy a file or directory to a new path.
+(pub let copy {src dest}
+  (let? [src_info (file_info src)]
+    (match (file_info_type src_info)
+      File ~> (copy_file src dest)
+      Directory ~> (copy_directory src dest)
+      Symlink ~> (Error
+                   (Unknown
+                     "Internal bug: file_info returned symlink info unexpectedly."))
+      Other ~> (Error
+                 (Unknown "Unknown file type (not file, directory, or symlink)")))))
+
+;;; Copy a file from src to dest.
+(pub let copy_file {src dest}
+  (match (do_copy_file src dest)
+    (Ok _) ~> (Ok ())
+    (Error err) ~> (Error err)))
+
+(extern let do_copy_file ~ (String -> String -> Result Int FileError) mond_fs_helpers/copy_file)
+
+;;; Rename/move a file or directory.
+(pub extern let rename_file ~ (String -> String -> Result Unit FileError) mond_fs_helpers/rename_file)
+
+;;; Rename/move a file or directory.
+(pub let rename {src dest}
+  (rename_file src dest))
+
+(let copy_directory_segments {src dest segments}
+  (match segments
+    [] ~> (Ok ())
+    [segment | rest] ~> (let [src_path (filepath/join src segment)
+                              dest_path (filepath/join dest segment)]
+                          (let? [src_info (file_info src_path)]
+                            (match (file_info_type src_info)
+                              File ~> (let? [content (read_bits src_path)
+                                             _ (write_bits dest_path content)]
+                                        (copy_directory_segments src dest rest))
+                              Directory ~> (let? [_ (create_directory dest_path)
+                                                  _ (do_copy_directory
+                                                    src_path
+                                                    dest_path)]
+                                             (copy_directory_segments
+                                               src
+                                               dest
+                                               rest))
+                              Symlink ~> (Error
+                                           (Unknown
+                                             "Internal bug: file_info returned symlink info unexpectedly."))
+                              Other ~> (Error
+                                         (Unknown
+                                           "Unknown file type (not file, directory, or symlink)")))))))
+
+;;; Copy a directory recursively.
+(pub let copy_directory {src dest}
+  (let? [_ (create_directory_all dest)]
+    (do_copy_directory src dest)))
+
+(let do_copy_directory {src dest}
+  (let? [segments (read_directory src)]
+    (copy_directory_segments src dest segments)))
+
+;;; Copy a directory recursively and then delete the old one.
+(pub let rename_directory {src dest}
+  (let? [_ (copy_directory src dest)]
+    (delete src)))
+
+;;; Clear all contents from a directory, leaving the top-level directory in place.
+(pub let clear_directory {path}
+  (let? [paths (read_directory path)]
+    (delete_all (list/map (f {segment} -> (filepath/join path segment)) paths))))
+
+(let get_files_from_contents {directory contents acc}
+  (match contents
+    [] ~> (Ok acc)
+    [content | rest] ~> (let [path (filepath/join directory content)]
+                          (let? [info (file_info path)]
+                            (match (file_info_type info)
+                              File ~> (get_files_from_contents
+                                        directory
+                                        rest
+                                        (list/append [path] acc))
+                              Directory ~> (let? [nested_files (get_files path)]
+                                             (get_files_from_contents
+                                               directory
+                                               rest
+                                               (list/append acc nested_files)))
+                              _ ~> (get_files_from_contents directory rest acc))))))
+
+;;; Returns a list of filepaths for every file in a directory, including nested files.
+(pub let get_files {directory}
+  (let? [contents (read_directory directory)]
+    (get_files_from_contents directory contents [])))
+
+;;; Set permissions for a file.
+(pub let set_permissions {filepath permissions}
+  (set_permissions_octal filepath (file_permissions_to_octal permissions)))
+
+;;; Set permissions for a file in octal integer representation.
+(pub extern let set_permissions_octal ~ (String -> Int -> Result Unit FileError) mond_fs_helpers/set_permissions_octal)
+
+;;; Returns the current working directory.
+(pub extern let current_directory ~ (Unit -> Result String FileError) mond_fs_helpers/current_directory)
+
+;;; Convert a relative path to an absolute path.
+(pub let resolve {path}
+  (do_resolve path))
+
+(extern let do_resolve ~ (String -> Result String FileError) mond_fs_helpers/resolve)
