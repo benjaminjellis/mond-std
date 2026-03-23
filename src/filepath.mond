@@ -75,11 +75,3 @@
     (match graphemes
       ["/" | rest] ~> (get_directory_name rest "/" "")
       _ ~> (get_directory_name graphemes "" ""))))
-
-;; fn permission_to_integer(permission: Permission) -> Int {
-;;   case permission {
-;;     Read -> 0o4
-;;     Write -> 0o2
-;;     Execute -> 0o1
-;;   }
-;; }
