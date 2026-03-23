@@ -1,0 +1,11 @@
+(use std/env [Os])
+(use std/env)
+(use std/testing [assert])
+
+(test
+  "env/current_os returns a known variant"
+  (match (env/os)
+    Linux ~> (assert True)
+    Mac ~> (assert True)
+    Windows ~> (assert True)
+    Other ~> (assert True)))
