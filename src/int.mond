@@ -1,0 +1,2 @@
+(pub extern let bitwise_and ~ (Int -> Int -> Int) erlang/band)
+(pub extern let bitwise_shift_right ~ (Int -> Int -> Int) erlang/bsr)

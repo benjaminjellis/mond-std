@@ -1,0 +1,37 @@
+(use std/fs [FileInfo
+ FileType
+ FilePermissions
+ Permission
+ file_info_permissions
+ file_info_permissions_octal
+ file_info_type
+ file_permissions_to_octal])
+(use std/result [Result])
+(use std/set)
+(use std/testing [assert_eq])
+
+(let mk_info {mode}
+  (FileInfo 0 mode 0 0 0 0 0 0 0 0))
+
+(test
+  "fs/file_info_type"
+  (let? [_ (assert_eq (file_info_type (mk_info 33188)) File)]
+    (let? [_ (assert_eq (file_info_type (mk_info 16877)) Directory)]
+      (let? [_ (assert_eq (file_info_type (mk_info 41471)) Symlink)]
+        (assert_eq (file_info_type (mk_info 49663)) Other)))))
+
+(test
+  "fs/file_info_permissions_octal"
+  (assert_eq (file_info_permissions_octal (mk_info 33188)) 420))
+
+(test
+  "fs/file_permissions_roundtrip"
+  (let [read_write (set/from_list [Read Write])
+        read_only (set/from_list [Read])]
+    (let? [_ (assert_eq
+             (file_info_permissions (mk_info 33188))
+             (FilePermissions read_write read_only read_only))]
+      (assert_eq
+        (file_permissions_to_octal
+          (FilePermissions read_write read_only read_only))
+        420))))

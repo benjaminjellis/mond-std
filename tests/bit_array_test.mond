@@ -1,0 +1,70 @@
+(use std/bit_array)
+(use std/result)
+(use std/order [Order])
+(use std/result [Result])
+(use std/testing [assert assert_eq])
+
+(test
+  "bit_array/from_string to_string size"
+  (let [bits (bit_array/from_string "hello")]
+    (let? [_ (assert_eq (bit_array/bit_size bits) 40)]
+      (let? [_ (assert_eq (bit_array/byte_size bits) 5)]
+        (let? [_ (assert (bit_array/is_utf8 bits))]
+          (assert_eq (bit_array/to_string bits) (Ok "hello")))))))
+
+(test
+  "bit_array/append concat"
+  (let [a (bit_array/from_string "butter")
+        b (bit_array/from_string "fly")]
+    (let? [_ (assert_eq
+             (bit_array/to_string (bit_array/append a b))
+             (Ok "butterfly"))]
+      (assert_eq
+        (bit_array/to_string (bit_array/concat [a b]))
+        (Ok "butterfly")))))
+
+(test
+  "bit_array/slice"
+  (let [bits (bit_array/from_string "butterfly")]
+    (let? [prefix (result/map_err
+             (f {_} -> "slice prefix failed")
+             (bit_array/slice bits 0 48))
+           suffix (result/map_err
+             (f {_} -> "slice suffix failed")
+             (bit_array/slice bits 48 24))
+           without_tail (result/map_err
+             (f {_} -> "slice negative-length failed")
+             (bit_array/slice bits 0 -24))]
+      (let? [_ (assert_eq (bit_array/to_string prefix) (Ok "butter"))]
+        (let? [_ (assert_eq (bit_array/to_string suffix) (Ok "fly"))]
+          (assert_eq (bit_array/to_string without_tail) (Ok "butter")))))))
+
+(test
+  "bit_array/base64 roundtrip"
+  (let [bits (bit_array/from_string "hello")
+        encoded (bit_array/base64_encode bits True)
+        encoded_no_pad (bit_array/base64_encode bits False)]
+    (let? [_ (assert_eq encoded "aGVsbG8=")]
+      (let? [_ (assert_eq encoded_no_pad "aGVsbG8")]
+        (match (bit_array/base64_decode encoded_no_pad)
+          (Error _) ~> (Error "base64 decode failed")
+          (Ok decoded) ~> (assert_eq (bit_array/to_string decoded) (Ok "hello")))))))
+
+(test
+  "bit_array/base16 roundtrip"
+  (let [bits (bit_array/from_string "hello")]
+    (let? [_ (assert_eq (bit_array/base16_encode bits) "68656c6c6f")]
+      (match (bit_array/base16_decode "68656c6c6f")
+        (Error _) ~> (Error "base16 decode failed")
+        (Ok decoded) ~> (assert_eq (bit_array/to_string decoded) (Ok "hello"))))))
+
+(test
+  "bit_array/starts_with and compare"
+  (let [a (bit_array/from_string "A")
+        b (bit_array/from_string "B")
+        butterfly (bit_array/from_string "butterfly")
+        but (bit_array/from_string "but")]
+    (let? [_ (assert (bit_array/starts_with butterfly but))]
+      (let? [_ (assert_eq (bit_array/compare a b) Lt)]
+        (let? [_ (assert_eq (bit_array/compare b a) Gt)]
+          (assert_eq (bit_array/compare a a) Eq))))))

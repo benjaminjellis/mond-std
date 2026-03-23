@@ -1,0 +1,6 @@
+(use std/int)
+(use std/testing [assert_eq])
+
+(test "int/bitwise_and" (assert_eq (int/bitwise_and 6 3) 2))
+
+(test "int/bitwise_shift_right" (assert_eq (int/bitwise_shift_right 8 2) 2))

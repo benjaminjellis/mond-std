@@ -1,3 +1,27 @@
 (pub type ['a 'b] Pair
   [(:first ~ 'a)
    (:second ~ 'b)])
+
+;;; Returns the first element of a Pair
+(pub let first {pair}
+  (:first pair))
+
+;;; Returns the secomnd element of a Pair
+(pub let second {pair}
+  (:second pair))
+
+;;; Returns a new pair with the elements swapped.
+(pub let swap {pair}
+  (Pair :first (:second pair) :second (:first pair)))
+
+;;; Returns a new pair with the first element having had `function` applied to
+(pub let map_first {pair function}
+  (Pair :first (function (:first pair)) :second (:second pair)))
+
+;;; Returns a new pair with the second element having had `function` applied to
+(pub let map_second {pair function}
+  (Pair :first (:first pair) :second (function (:second pair))))
+
+;;; Create a new pair with first elemnt a and second element b
+(pub let new {a b}
+  (Pair :first a :second b))

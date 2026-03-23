@@ -25,6 +25,9 @@
 ;;; Number of entries.
 (pub extern let size ~ (Map 'k 'v -> Int) maps/size)
 
+;;; Return the list of keys in the map.
+(pub extern let keys ~ (Map 'k 'v -> (List 'k)) maps/keys)
+
 ;;; Result of a take operation: the updated map and the removed value (if present).
 (pub type ['k 'v] TakeResult
   [(:map ~ Map 'k 'v)
