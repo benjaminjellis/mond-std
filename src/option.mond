@@ -37,6 +37,12 @@
     (Ok x) ~> (Some x)
     (Error _) ~> None))
 
+;;; Create a Result from an Option
+(pub let to_result {error option}
+  (match option
+    (Some x) ~> (Ok x)
+    (None) ~> (Error error)))
+
 ;;; Returns the contained Some value or a provided default.
 (pub let unwrap_or {default option}
   (match option

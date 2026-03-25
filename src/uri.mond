@@ -1,3 +1,6 @@
+(use list)
+(use string)
+(use pair [Pair])
 (use option [Option])
 (use result [Result])
 
@@ -20,4 +23,32 @@
     :query None
     :fragment None))
 
+;;; Splits the path section of a URI into its constituent segments.
+;;; Removes empty segments and resolves dot-segments as specified in:
+;;; https://www.ietf.org/rfc/rfc3986.html#section-5.2
+;;; Example: (path_segments "/users/1") => ["users" "1"]
+(pub let path_segments {path}
+  (remove_dot_segments (string/split path "/")))
+
+(let remove_dot_segments {input}
+  (remove_dot_segments_loop input []))
+
+(let remove_dot_segments_loop {input accumulator}
+  (match input
+    [] ~> (list/reverse accumulator)
+    [segment | rest] ~> (let [accumulator (match segment accumulator
+                                "" accumulator ~> accumulator
+                                "." accumulator ~> accumulator
+                                ".." [] ~> []
+                                ".." [_ | accumulator] ~> accumulator
+                                segment accumulator ~> (list/prepend
+                                                         segment
+                                                         accumulator))]
+                          (remove_dot_segments_loop rest accumulator))))
+
+;;; Parse a URI query string into key/value pairs.
+;;; Bare keys are mapped to an empty string value.
+(pub extern let parse_query ~ (String
+  -> Result (List (Pair String String)) Unit) mond_uri_helpers/parse_query)
+(pub extern let percent_encode ~ (String -> String) mond_uri_helpers/percent_encode)
 (pub extern let parse ~ (String -> Result Uri Unit) mond_uri_helpers/parse_uri)

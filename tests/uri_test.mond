@@ -1,4 +1,5 @@
 (use std/uri)
+(use std/pair [Pair])
 (use std/option [Option])
 (use std/result [Result])
 (use std/testing [assert_eq])
@@ -45,3 +46,43 @@
 (test
   "uri/parse invalid input returns error"
   (assert_eq (uri/parse "http://[") (Error ())))
+
+(test
+  "uri/path_segments basic path"
+  (assert_eq (uri/path_segments "/users/1") ["users" "1"]))
+
+(test
+  "uri/path_segments removes empty and dot segments"
+  (assert_eq (uri/path_segments "/users//./1/") ["users" "1"]))
+
+(test
+  "uri/path_segments resolves dot-dot segments"
+  (assert_eq (uri/path_segments "/a/b/../c") ["a" "c"]))
+
+(test
+  "uri/path_segments does not go above root"
+  (assert_eq (uri/path_segments "/../../a") ["a"]))
+
+(test
+  "uri/parse_query parses key value pairs"
+  (assert_eq
+    (uri/parse_query "a=1&b=two")
+    (Ok [(Pair :first "a" :second "1") (Pair :first "b" :second "two")])))
+
+(test
+  "uri/parse_query maps bare keys to empty string"
+  (assert_eq
+    (uri/parse_query "flag&name=ben")
+    (Ok [(Pair :first "flag" :second "") (Pair :first "name" :second "ben")])))
+
+(test
+  "uri/parse_query invalid percent encoding returns error"
+  (assert_eq (uri/parse_query "a=%ZZ") (Error ())))
+
+(test
+  "uri/percent_encode encodes reserved characters"
+  (assert_eq (uri/percent_encode "a b/c?d=e&f") "a%20b%2Fc%3Fd%3De%26f"))
+
+(test
+  "uri/percent_encode preserves unreserved plus punctuation set"
+  (assert_eq (uri/percent_encode "AZaz09-._~!$'()*+") "AZaz09-._~!$'()*+"))

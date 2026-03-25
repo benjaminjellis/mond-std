@@ -28,7 +28,7 @@
 (pub let split_unix {path}
   (|> (match (string/split path "/")
         [""] ~> []
-        ["" | rest] ~> (list/append ["/"] rest)
+        ["" | rest] ~> (list/prepend "/" rest)
         rest ~> rest)
       (list/filter (f {x} -> (!= x "")))))
 

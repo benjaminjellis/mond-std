@@ -374,12 +374,12 @@
                               File ~> (get_files_from_contents
                                         directory
                                         rest
-                                        (list/append [path] acc))
+                                        (list/prepend path acc))
                               Directory ~> (let? [nested_files (get_files path)]
                                              (get_files_from_contents
                                                directory
                                                rest
-                                               (list/append acc nested_files)))
+                                               (list/concat acc nested_files)))
                               _ ~> (get_files_from_contents directory rest acc))))))
 
 ;;; Returns a list of filepaths for every file in a directory, including nested files.

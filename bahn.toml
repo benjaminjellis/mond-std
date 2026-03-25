@@ -1,6 +1,6 @@
 [package]
 name = "std"
-version = "0.0.9"
-min_mond_version = "0.0.7"
+version = "0.0.10"
+min_mond_version = "0.0.14"
 
 [dependencies]
