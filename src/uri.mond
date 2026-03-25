@@ -1,0 +1,23 @@
+(use option [Option])
+(use result [Result])
+
+(pub type Uri
+  [(:scheme ~ Option String)
+   (:userinfo ~ Option String)
+   (:host ~ Option String)
+   (:port ~ Option Int)
+   (:path ~ String)
+   (:query ~ Option String)
+   (:fragment ~ Option String)])
+
+(pub let empty {}
+  (Uri
+    :scheme None
+    :userinfo None
+    :host None
+    :port None
+    :path ""
+    :query None
+    :fragment None))
+
+(pub extern let parse ~ (String -> Result Uri Unit) mond_uri_helpers/parse_uri)

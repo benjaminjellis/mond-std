@@ -1,0 +1,47 @@
+(use std/uri)
+(use std/option [Option])
+(use std/result [Result])
+(use std/testing [assert_eq])
+
+(test
+  "uri/empty returns default values"
+  (let [value (uri/empty)]
+    (let? [_ (assert_eq (:scheme value) None)]
+      (let? [_ (assert_eq (:userinfo value) None)]
+        (let? [_ (assert_eq (:host value) None)]
+          (let? [_ (assert_eq (:port value) None)]
+            (let? [_ (assert_eq (:path value) "")]
+              (let? [_ (assert_eq (:query value) None)]
+                (assert_eq (:fragment value) None)))))))))
+
+(test
+  "uri/parse full uri with all components"
+  (match (uri/parse "https://user@example.com:8080/a/b?x=1#frag")
+    (Ok parsed) ~> (let? [_ (assert_eq (:scheme parsed) (Some "https"))]
+                     (let? [_ (assert_eq (:userinfo parsed) (Some "user"))]
+                       (let? [_ (assert_eq (:host parsed) (Some "example.com"))]
+                         (let? [_ (assert_eq (:port parsed) (Some 8080))]
+                           (let? [_ (assert_eq (:path parsed) "/a/b")]
+                             (let? [_ (assert_eq (:query parsed) (Some "x=1"))]
+                               (assert_eq (:fragment parsed) (Some "frag"))))))))
+    (Error _) ~> (Error "expected parse success")))
+
+(test
+  "uri/parse lowercases scheme"
+  (match (uri/parse "HTTP://example.com")
+    (Ok parsed) ~> (assert_eq (:scheme parsed) (Some "http"))
+    (Error _) ~> (Error "expected parse success")))
+
+(test
+  "uri/parse missing optional parts"
+  (match (uri/parse "https://example.com")
+    (Ok parsed) ~> (let? [_ (assert_eq (:userinfo parsed) None)]
+                     (let? [_ (assert_eq (:port parsed) None)]
+                       (let? [_ (assert_eq (:query parsed) None)]
+                         (let? [_ (assert_eq (:fragment parsed) None)]
+                           (assert_eq (:path parsed) "")))))
+    (Error _) ~> (Error "expected parse success")))
+
+(test
+  "uri/parse invalid input returns error"
+  (assert_eq (uri/parse "http://[") (Error ())))
