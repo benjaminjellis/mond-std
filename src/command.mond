@@ -1,0 +1,41 @@
+(use result [Result])
+(use string)
+
+;;; Result of running a command.
+(pub type CommandResult
+  [(:status ~ Int)
+   ;; Combined stdout/stderr output.
+   (:output ~ String)])
+
+;;; Errors that can occur when invoking commands.
+(pub type CommandError
+  [CommandNotFound
+   InvalidCommand
+   InvalidArguments
+   OutputNotUtf8
+   (Unknown ~ String)])
+
+;;; Stable string tag for branching and logging command errors.
+(pub let error_kind {err}
+  (match err
+    CommandNotFound ~> "command_not_found"
+    InvalidCommand ~> "invalid_command"
+    InvalidArguments ~> "invalid_arguments"
+    OutputNotUtf8 ~> "output_not_utf8"
+    (Unknown _) ~> "unknown"))
+
+;;; Convert a command error into a human-readable description.
+(pub let describe_error {err}
+  (match err
+    CommandNotFound ~> "Command not found"
+    InvalidCommand ~> "Invalid command"
+    InvalidArguments ~> "Invalid command arguments"
+    OutputNotUtf8 ~> "Command output is not valid UTF-8"
+    (Unknown inner) ~> (string/concat "Unknown error: " inner)))
+
+;;; Run an executable with the given argument list.
+;;; This uses Erlang ports with `{spawn_executable, ...}` and does not invoke a shell.
+;;; Stderr is merged into `:output`.
+(pub extern let run ~ (String
+  -> (List String)
+  -> Result CommandResult CommandError) mond_command_helpers/run)

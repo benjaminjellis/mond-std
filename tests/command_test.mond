@@ -1,0 +1,29 @@
+(use std/command)
+(use std/result [Result])
+(use std/testing [assert_eq])
+
+(let expect_command_error_kind {result expected_kind}
+  (match result
+    (Error err) ~> (assert_eq (command/error_kind err) expected_kind)
+    (Ok _) ~> (Error "expected command error")))
+
+(test
+  "command/run captures stdout and status"
+  (match (command/run
+    "erl"
+    ["-noshell" "-eval" "io:put_chars([104,101,108,108,111]), halt(0)."])
+    (Ok result) ~> (let? [_ (assert_eq (:status result) 0)]
+                     (assert_eq (:output result) "hello"))
+    (Error err) ~> (Error (command/describe_error err))))
+
+(test
+  "command/run returns non-zero exit status"
+  (match (command/run "erl" ["-noshell" "-eval" "halt(7)."])
+    (Ok result) ~> (assert_eq (:status result) 7)
+    (Error err) ~> (Error (command/describe_error err))))
+
+(test
+  "command/run returns command_not_found for missing executable"
+  (expect_command_error_kind
+    (command/run "definitely-not-a-real-command-xyz" [])
+    "command_not_found"))
