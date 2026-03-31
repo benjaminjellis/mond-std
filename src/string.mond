@@ -55,3 +55,16 @@
   (match (<= up_to 0)
     True ~> from
     False ~> (slice from up_to (length from))))
+
+(pub let join {separator values}
+  (match values
+    [] ~> ""
+    [value | rest] ~> (join_with_loop separator value rest)))
+
+(let join_with_loop {separator accumulator values}
+  (match values
+    [] ~> accumulator
+    [value | rest] ~> (join_with_loop
+                        separator
+                        (concat (concat accumulator separator) value)
+                        rest)))

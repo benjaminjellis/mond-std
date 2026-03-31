@@ -104,9 +104,11 @@
 
 ;;; Call a function for each member.
 (pub let each {set fun}
-  (fold
-    set
-    ()
-    (f {nil member} ->
+  (each_loop (to_list set) fun))
+
+(let each_loop {members fun}
+  (match members
+    [] ~> ()
+    [member | rest] ~>
       (do (fun member)
-          nil))))
+          (each_loop rest fun))))

@@ -1,5 +1,6 @@
 (use std/list)
 (use std/option [Option])
+(use std/pair [Pair])
 (use std/result [Result])
 (use std/testing [assert_eq])
 
@@ -22,17 +23,81 @@
     (assert_eq value (Some 1))))
 
 (test
-  "list/length reverse and append"
+  "list/length reverse and concat"
   (let [list (test_list)]
     (let? [_ (assert_eq (list/length list) 9)]
       (let? [_ (assert_eq (list/reverse [1 2 3]) [3 2 1])]
-        (assert_eq (list/append [1 2] [3 4]) [1 2 3 4])))))
+        (assert_eq (list/concat [1 2] [3 4]) [1 2 3 4])))))
+
+(test
+  "list/append adds item to end"
+  (assert_eq (list/append 4 [1 2 3]) [1 2 3 4]))
+
+(test
+  "list/prepend adds item to front"
+  (assert_eq (list/prepend 1 [2 3 4]) [1 2 3 4]))
+
+(test
+  "list/prepend works on empty list"
+  (assert_eq (list/prepend "x" []) ["x"]))
+
+(test
+  "list/pop_first removes first matching element"
+  (assert_eq
+    (list/pop_first (f {x} -> (= x 2)) [1 2 3 2])
+    (Pair :first (Some 2) :second [1 3 2])))
+
+(test
+  "list/pop_first returns none when no element matches"
+  (assert_eq
+    (list/pop_first (f {x} -> (= x 42)) [1 2 3])
+    (Pair :first None :second [1 2 3])))
+
+(test
+  "list/replace_first updates only first matching element"
+  (assert_eq (list/replace_first (f {x} -> (= x 2)) 9 [1 2 3 2]) [1 9 3 2]))
+
+(test
+  "list/replace_first leaves list unchanged on no match"
+  (assert_eq (list/replace_first (f {x} -> (= x 42)) 9 [1 2 3]) [1 2 3]))
+
+(test
+  "list/upsert_first replaces first matching element"
+  (assert_eq (list/upsert_first (f {x} -> (= x 2)) 9 [1 2 3 2]) [1 9 3 2]))
+
+(test
+  "list/upsert_first appends when no match"
+  (assert_eq (list/upsert_first (f {x} -> (= x 42)) 9 [1 2 3]) [1 2 3 9]))
 
 (test
   "list/member map and filter"
   (let? [_ (assert_eq (list/member 4 (test_list)) True)]
     (let? [_ (assert_eq (list/map (f {x} -> (+ x 1)) [1 2 3]) [2 3 4])]
       (assert_eq (list/filter (f {x} -> (> x 2)) [1 2 3 4]) [3 4]))))
+
+(test
+  "list/flat_map maps and flattens in order"
+  (assert_eq (list/flat_map (f {x} -> [x (* x 10)]) [1 2 3]) [1 10 2 20 3 30]))
+
+(test
+  "list/flat_map can drop items by returning empty lists"
+  (assert_eq
+    (list/flat_map
+      (f {x} -> (match (= (% x 2) 0) True ~> [x] False ~> []))
+      [1 2 3 4 5 6])
+    [2 4 6]))
+
+(test
+  "list/filter_map keeps ok values and preserves order"
+  (assert_eq
+    (list/filter_map
+      (f {x} -> (match x 2 ~> (Ok "two") 4 ~> (Ok "four") _ ~> (Error ())))
+      [1 2 3 4])
+    ["two" "four"]))
+
+(test
+  "list/filter_map returns empty list when all values are errors"
+  (assert_eq (list/filter_map (f {x} -> (Error x)) [1 2 3]) []))
 
 (test
   "list/member returns false for missing element"
@@ -51,10 +116,10 @@
 (test
   "list/foldl and foldr preserve traversal order"
   (let? [_ (assert_eq
-           (list/foldl (f {x acc} -> (list/append acc [x])) [] [1 2 3])
+           (list/foldl (f {x acc} -> (list/append x acc)) [] [1 2 3])
            [1 2 3])]
     (assert_eq
-      (list/foldr (f {x acc} -> (list/append acc [x])) [] [1 2 3])
+      (list/foldr (f {x acc} -> (list/append x acc)) [] [1 2 3])
       [3 2 1])))
 
 (test

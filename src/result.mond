@@ -30,6 +30,12 @@
     (Ok _) ~> False
     (Error err) ~> (function err)))
 
+;;; Try apply `function` to the Result if it's `Ok`
+(pub let try {function result}
+  (match result
+    (Ok x) ~> (function x)
+    (Error err) ~> (Error err)))
+
 ;;; Maps a Result 'a 'e to Result 'c 'e by applying a function to a contained Ok value, 
 ;;; leaving an Error value untouched.
 ;;; This function can be used to compose the results of two functions.
