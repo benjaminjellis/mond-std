@@ -17,7 +17,7 @@ jobs:
       - name: Verify OTP
         run: erl -noshell -eval 'io:format("~s~n",[erlang:system_info(otp_release)]), halt().'
       - name: Install mond
-        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.14 bahn
+        run: cargo install --git https://github.com/benjaminjellis/mond.git --tag 0.0.17 bahn
       - name: Check formatting
         run: bahn format --check
       - name: Build
