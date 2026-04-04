@@ -1,6 +1,7 @@
 (use std/map)
 (use std/result [Result])
 (use std/unknown [DecodeError])
+(use std/bit_array)
 (use std/testing [assert_eq])
 
 (let player_data {}
@@ -59,3 +60,37 @@
       (unknown/from "not-a-map")
       (unknown/field "name" (unknown/string)))
     (Error [(DecodeError :expected "Map" :found "String")])))
+
+(test
+  "unknown/bit_array success"
+  (let [bits (bit_array/from_string "hi")]
+    (assert_eq
+      (unknown/run (unknown/from bits) (unknown/bit_array))
+      (Ok bits))))
+
+(test
+  "unknown/field list index success"
+  (assert_eq
+    (unknown/run
+      (unknown/from ["zero" "one" "two"])
+      (unknown/field 1 (unknown/string)))
+    (Ok "one")))
+
+(let int_decoder {}
+  (unknown/one_of
+    (unknown/field "n" (unknown/int))
+    [(unknown/int)]))
+
+(test
+  "unknown/one_of primary decoder"
+  (assert_eq
+    (unknown/run
+      (unknown/from (map/put "n" 7 (map/new)))
+      (int_decoder))
+    (Ok 7)))
+
+(test
+  "unknown/one_of fallback decoder"
+  (assert_eq
+    (unknown/run (unknown/from 9) (int_decoder))
+    (Ok 9)))

@@ -1,0 +1,29 @@
+(use std/bytes_tree)
+(use std/bit_array)
+(use std/result [Result])
+(use std/testing [assert_eq])
+
+(test
+  "bytes_tree/from_string materialises to bit_array"
+  (let [tree (bytes_tree/from_string "hello")
+        bits (bytes_tree/to_bit_array tree)]
+    (assert_eq (bit_array/to_string bits) (Ok "hello"))))
+
+(test
+  "bytes_tree/append and concat"
+  (let [left (bytes_tree/from_string "butter")
+        right (bytes_tree/from_string "fly")
+        appended (bytes_tree/append left right)
+        concatted (bytes_tree/concat [left right])]
+    (let? [_ (assert_eq
+             (bit_array/to_string (bytes_tree/to_bit_array appended))
+             (Ok "butterfly"))]
+      (assert_eq
+        (bit_array/to_string (bytes_tree/to_bit_array concatted))
+        (Ok "butterfly")))))
+
+(test
+  "bytes_tree/from_bit_array"
+  (let [bits (bit_array/from_string "hi")
+        tree (bytes_tree/from_bit_array bits)]
+    (assert_eq (bytes_tree/to_bit_array tree) bits)))
