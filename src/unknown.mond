@@ -1,4 +1,5 @@
 (use result [Result])
+(use bit_array [BitArray])
 
 ;;; Opaque runtime-backed value from an untyped boundary.
 (pub extern type Unknown)
@@ -22,10 +23,13 @@
 (pub extern let int ~ (Unit -> Decoder Int) mond_unknown_helpers/int)
 (pub extern let float ~ (Unit -> Decoder Float) mond_unknown_helpers/float)
 (pub extern let bool ~ (Unit -> Decoder Bool) mond_unknown_helpers/bool)
+(pub extern let bit_array ~ (Unit -> Decoder BitArray) mond_unknown_helpers/bit_array)
+(pub extern let dynamic ~ (Unit -> Decoder Unknown) mond_unknown_helpers/dynamic)
 
 ;;; Structural decoders.
 (pub extern let list ~ ((Decoder 'a) -> (Decoder (List 'a))) mond_unknown_helpers/list)
-(pub extern let field ~ (String -> (Decoder 'a) -> (Decoder 'a)) mond_unknown_helpers/field)
+(pub extern let field ~ ('k -> (Decoder 'a) -> (Decoder 'a)) mond_unknown_helpers/field)
+(pub extern let one_of ~ ((Decoder 'a) -> (List (Decoder 'a)) -> (Decoder 'a)) mond_unknown_helpers/one_of)
 
 ;;; Primitive encoders 
 (pub extern let from_string ~ (String -> Unknown) mond_unknown_helpers/identity)

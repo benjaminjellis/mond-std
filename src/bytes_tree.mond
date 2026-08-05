@@ -1,0 +1,23 @@
+(use bit_array [BitArray])
+(use bit_array)
+
+;;; A bytes tree is an efficient binary builder structure.
+;;; Runtime representation is Erlang iodata.
+(pub extern type BytesTree)
+
+;;; Lift a BitArray into a BytesTree.
+(pub extern let from_bit_array ~ (BitArray -> BytesTree) mond_bytes_tree_helpers/identity)
+
+;;; Build a BytesTree from a UTF-8 string.
+(pub let from_string {value}
+  (from_bit_array (bit_array/from_string value)))
+
+;;; Concatenate many bytes trees into one.
+(pub extern let concat ~ ((List BytesTree) -> BytesTree) mond_bytes_tree_helpers/concat)
+
+;;; Concatenate two bytes trees.
+(pub let append {first second}
+  (concat [first second]))
+
+;;; Materialise a bytes tree into a BitArray.
+(pub extern let to_bit_array ~ (BytesTree -> BitArray) mond_bytes_tree_helpers/to_bit_array)
