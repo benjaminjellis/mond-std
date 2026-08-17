@@ -1,0 +1,8 @@
+(use std/atom)
+(use std/testing [assert_eq])
+
+(test
+  "atom/to_string roundtrip"
+  (assert_eq
+    (atom/to_string (atom/create "tcp"))
+    "tcp"))

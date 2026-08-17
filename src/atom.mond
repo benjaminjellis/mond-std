@@ -9,3 +9,6 @@
 ;;; virtual machine to crash!
 ;;
 (pub extern let create ~ (String -> Atom) erlang/binary_to_atom)
+
+;;; Convert an atom to its string representation.
+(pub extern let to_string ~ (Atom -> String) mond_atom_helpers/to_string)

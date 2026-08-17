@@ -1,5 +1,18 @@
 -module(mond_unknown_helpers).
--export([from/1, run/2, string/0, int/0, float/0, bool/0, list/1, field/2, identity/1]).
+-export([
+    from/1,
+    run/2,
+    string/0,
+    int/0,
+    float/0,
+    bool/0,
+    bit_array/0,
+    dynamic/0,
+    list/1,
+    field/2,
+    one_of/2,
+    identity/1
+]).
 
 from(Value) ->
     Value.
@@ -39,6 +52,18 @@ bool() ->
         {error, [decode_error(<<"Bool">>, Data)]}
     end.
 
+bit_array() ->
+    fun(Data) when is_bitstring(Data) ->
+        {ok, Data};
+       (Data) ->
+        {error, [decode_error(<<"BitArray">>, Data)]}
+    end.
+
+dynamic() ->
+    fun(Data) ->
+        {ok, Data}
+    end.
+
 list(ItemDecoder) ->
     fun(Data) when is_list(Data) ->
         decode_list(Data, ItemDecoder, []);
@@ -47,16 +72,62 @@ list(ItemDecoder) ->
     end.
 
 field(Key, ValueDecoder) ->
-    fun(Data) when is_map(Data) ->
-        case maps:find(Key, Data) of
+    fun(Data) ->
+        case field_value(Data, Key) of
             {ok, Value} ->
                 ValueDecoder(Value);
-            error ->
-                {error, [{decodeerror, <<"Field">>, <<"Nothing">>}]}
-        end;
-       (Data) ->
-        {error, [decode_error(<<"Map">>, Data)]}
+            missing ->
+                {error, [{decodeerror, <<"Field">>, <<"Nothing">>}]};
+            bad_type ->
+                {error, [decode_error(<<"Map">>, Data)]}
+        end
     end.
+
+one_of(Primary, Others) ->
+    fun(Data) ->
+        case Primary(Data) of
+            {ok, Value} ->
+                {ok, Value};
+            {error, Errors} ->
+                try_decoders(Data, Others, Errors)
+        end
+    end.
+
+try_decoders(_Data, [], Errors) ->
+    {error, Errors};
+try_decoders(Data, [Decoder | Rest], Errors) ->
+    case Decoder(Data) of
+        {ok, Value} ->
+            {ok, Value};
+        {error, NextErrors} ->
+            try_decoders(Data, Rest, Errors ++ NextErrors)
+    end.
+
+field_value(Data, Key) when is_map(Data) ->
+    case maps:find(Key, Data) of
+        {ok, Value} -> {ok, Value};
+        error -> missing
+    end;
+field_value(Data, Key) when is_tuple(Data), is_integer(Key), Key >= 0 ->
+    Size = tuple_size(Data),
+    case Key < Size of
+        true -> {ok, element(Key + 1, Data)};
+        false -> missing
+    end;
+field_value(Data, Key) when is_list(Data), is_integer(Key), Key >= 0 ->
+    case nth(Key, Data) of
+        {ok, Value} -> {ok, Value};
+        error -> missing
+    end;
+field_value(_Data, _Key) ->
+    bad_type.
+
+nth(0, [Value | _]) ->
+    {ok, Value};
+nth(N, [_ | Rest]) when N > 0 ->
+    nth(N - 1, Rest);
+nth(_, []) ->
+    error.
 
 decode_list([], _ItemDecoder, Acc) ->
     {ok, lists:reverse(Acc)};
